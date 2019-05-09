@@ -68,7 +68,7 @@ class SimPolyhedra():
 
 		A_r = A_B_inv.dot(self.A)
 		b_r = A_B_inv.dot(self.b)
-		c_r = self.c - self.c[0,basis].dot(A_r)
+		c_r = self.c - self.c[0,self.basis].dot(A_r)
 		z_r = -self.c[:,self.basis].dot(b_r)
 		
 		self.rowVar = []
