@@ -1,6 +1,6 @@
 import sys
 import math
-#import gym
+import gym
 import numpy as np
 from scipy import optimize
 import scipy
