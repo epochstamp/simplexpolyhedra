@@ -58,6 +58,8 @@ class SimPolyhedra():
 		self.b = b
 		self.c = c
 
+        def getNumberOfActions(self): return self.n
+
 	def reset(self):
 		"""
 		Sample and return an initial state
@@ -117,9 +119,9 @@ class SimPolyhedra():
  
 	def observe(self): 
 		"""
-		Transform state to observation (identity here)
+		Transform state to observation (matrix to vector here)
 		"""
-		return self.state
+		return self.state.flatten()
 
 	def objective(self):
 		return -self.state[0,0]
