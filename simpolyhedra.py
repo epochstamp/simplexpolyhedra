@@ -113,7 +113,6 @@ class SimPolyhedra():
         b_r = A_B_inv.dot(self.b)
         c_r = self.c - self.c[0,self.basis].dot(A_r)
         z_r = -self.c[:,self.basis].dot(b_r)
-        
         # Storage of informations on basic variables
         self.rowVar = []
         for i in range(self.n):
@@ -124,6 +123,12 @@ class SimPolyhedra():
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
         
         return self.observe()
+
+    def getStateSize(self):
+        return self.observe().flatten().shape[0]
+
+    def getAvailableActions(self):
+        return list(filter(lambda i : not self.basis[i], range(self.n)))
     
     def step(self, act):
         """
@@ -184,11 +189,12 @@ class SimPolyhedra():
     def isOptimal(self):
         return (self.state[0,1:] >= 0).all()
     
+
     def dantzigAction(self):
         return np.argmin(self.state[0,1:])
         
 if __name__ == '__main__':
-    n = 100
+    n = 10
     P = SimPolyhedra.cube(n)
     
     """ 
@@ -206,9 +212,11 @@ if __name__ == '__main__':
     
     """ Dantzig's rule """
     steps = 0
+    acts = []
     while not P.isOptimal():
-        a = P.dantzigAction()
+        a = P.greatestImprovementAction()
         P.step(a)
+        acts.append(a)
         steps += 1
     
     expected = sum(P.c[P.c<=0])
@@ -220,5 +228,5 @@ if __name__ == '__main__':
     expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n//2)])
     print("Expected number of steps : " + str(expected_steps))
     print("Number of steps : " + str(steps))
-    print("")
+    print("History of actions  + uniqueness: ", acts, len(set(acts)) == len(acts))
         
