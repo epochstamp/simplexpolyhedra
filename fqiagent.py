@@ -20,9 +20,9 @@ def int_to_onehot(i, n):
 class FQI_Agent(object):
 
 
-    def __init__(self, env, d_prob=1.0):
+    def __init__(self, env, d_prob=2.0):
         self.env = env
-        self.RC = ExtraTreesRegressor(n_estimators=100, n_jobs=3)
+        self.RC = ExtraTreesRegressor(n_estimators=200, n_jobs=3)
         self.LS = None
         self.d_prob = d_prob
 
@@ -89,7 +89,8 @@ class FQI_Agent(object):
             Q_matrix[:, j] *= out_temp
             j += 1    
         maxQ_vector = np.amax(Q_matrix)
-        out = self.LS[:,-2] + env.gamma() * maxQ_vector * self.LS[:,-1]
+        out = self.LS[:,-2] + env.gamma() * maxQ_vector * ~self.LS[:,-1]
+        print(sum(out))
         return (inp, out)
 
     def train(self, I):
@@ -131,6 +132,6 @@ if __name__=="__main__":
     env = SimPolyhedra.cube(50)
     agt = FQI_Agent(env)
     print("Training process...")
-    agt.train(30)
+    agt.train(50)
     print("Training done. Performing test...")
     agt.test()
