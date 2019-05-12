@@ -74,8 +74,7 @@ class FQI_Agent(object):
         if i == 0:
             return self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()], self.LS[:,-1]
         # Otherwise, output is r + gamma*max_a Q(s,a)
-        # It is assumed that RC is a list of regressor, one per action
-        # (It does not make sense to include it in features, it is an index)
+        # Integer action is converted to one-hot vector.
         inp = self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()]
         inp_next = self.LS[:,self.env.getStateSize() + env.getNumberOfActions():2*self.env.getStateSize() + env.getNumberOfActions()]
         
@@ -88,9 +87,9 @@ class FQI_Agent(object):
             out_temp = self.RC.predict(inp_temp)
             Q_matrix[:, j] *= out_temp
             j += 1    
-        maxQ_vector = np.amax(Q_matrix)
-        out = self.LS[:,-2] + env.gamma() * maxQ_vector * ~self.LS[:,-1]
-        print(sum(out))
+        maxQ_vector = np.amax(Q_matrix, axis=1)
+        notdone = 1 - self.LS[:,-1]
+        out = self.LS[:,-2] + env.gamma() * maxQ_vector * notdone
         return (inp, out)
 
     def train(self, I):
