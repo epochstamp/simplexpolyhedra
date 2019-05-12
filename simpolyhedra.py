@@ -194,9 +194,8 @@ class SimPolyhedra():
         return np.argmin(self.state[0,1:])
         
 if __name__ == '__main__':
-    n = 10
+    n = 50
     P = SimPolyhedra.cube(n)
-    
     """ 
     2 ways to initialize a basis
     automatically (with no input) :

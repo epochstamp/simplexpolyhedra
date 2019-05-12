@@ -20,9 +20,9 @@ def int_to_onehot(i, n):
 class FQI_Agent(object):
 
 
-    def __init__(self, env, d_prob=0.66):
+    def __init__(self, env, d_prob=1.0):
         self.env = env
-        self.RC = ExtraTreesRegressor(n_estimators=100)
+        self.RC = ExtraTreesRegressor(n_estimators=100, n_jobs=3)
         self.LS = None
         self.d_prob = d_prob
 
@@ -35,6 +35,7 @@ class FQI_Agent(object):
         range_steps = range(steps)
         act_histories = [[] for _ in range_N]
         success = 0
+        dantzig_trajectory = [True for _ in range_N]
         for _ in range_steps:
             
             for i in range_N:
@@ -47,7 +48,9 @@ class FQI_Agent(object):
                     act_histories[i].append(act)
                     ns, r, done, _ = envs[i].step(act) 
                     LS.append((states[i],act,r,ns,done))
-                    states[i] = ns  
+                    states[i] = ns
+                    if act != envs[i].dantzigAction():
+                        dantzig_trajectory[i] = False  
                     if done:
                         if r == 1:
                             success += 1
@@ -57,6 +60,7 @@ class FQI_Agent(object):
             s = ns
         print("Number of trajectories : ", N*steps)
         print("Number of successful trajectories : ", success)
+        print("Number of full dantzig trajectories : ", np.sum(dantzig_trajectory))
         return LS
 
 
@@ -73,21 +77,38 @@ class FQI_Agent(object):
         # It is assumed that RC is a list of regressor, one per action
         # (It does not make sense to include it in features, it is an index)
         inp = self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()]
-        inp_next = self.LS[:,self.env.getStateSize() + env.getNumberOfActions():-2]
-        out = self.LS[:,-2] + env.gamma() * self.RC.predict(inp_next) * self.LS[:,-1]
+        inp_next = self.LS[:,self.env.getStateSize() + env.getNumberOfActions():2*self.env.getStateSize() + env.getNumberOfActions()]
+        
+        Q_matrix = np.ones((inp.shape[0],env.getNumberOfActions()))
+        j = 0
+        for a in range(env.getNumberOfActions()):
+            onehot_a = int_to_onehot(a, env.getNumberOfActions())
+            tiles = np.tile(onehot_a,(inp.shape[0],1))
+            inp_temp = np.hstack([inp_next, tiles])
+            out_temp = self.RC.predict(inp_temp)
+            Q_matrix[:, j] *= out_temp
+            j += 1    
+        maxQ_vector = np.amax(Q_matrix)
+        out = self.LS[:,-2] + env.gamma() * maxQ_vector * self.LS[:,-1]
         return (inp, out)
 
     def train(self, I):
-        L = self.generateRandomTuples(75, 100)
+        L = self.generateRandomTuples(100, 250)
+        print("FQI training")
         for i in range(I):
+            print("Iteration ",i,"/",I)
+            print("Prepare learning set")
             inp, out = agt.toLearningSet(L, i)
+            print("Iterate on extra trees")
             self.RC.fit(inp,out)
+        
 
     def test(self):
         state = self.env.reset(-1)
         done = False
         n_actions = env.getNumberOfActions()
         i = 0
+        self.RC.n_jobs = 1
         while not done and i < 1000:
             max_a = -np.inf
             argmax_a = None
@@ -109,5 +130,7 @@ class FQI_Agent(object):
 if __name__=="__main__":
     env = SimPolyhedra.cube(50)
     agt = FQI_Agent(env)
-    agt.train(20)
+    print("Training process...")
+    agt.train(30)
+    print("Training done. Performing test...")
     agt.test()
