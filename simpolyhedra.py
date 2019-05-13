@@ -1,6 +1,6 @@
 import sys
 import math
-#import gym
+import gym
 import numpy as np
 from scipy import optimize
 import scipy
@@ -131,6 +131,13 @@ class SimPolyhedra():
     def getAvailableActions(self):
         return [i for i in range(self.n) if not self.basis[i]]
     
+    def getImprovingActions(self):
+        return [i for i in range(self.n) if not self.basis[i] and self.state[0,1+i] < 0]
+    
+    
+    def randomImprovingAction(self):
+        return np.random.choice(self.getImprovingActions())
+    
     def dantzigAction(self):
         return np.argmin(self.state[0,1:])
         
@@ -213,7 +220,7 @@ if __name__ == '__main__':
     steps = 0
     acts = []
     while not P.isOptimal():
-        a = P.dantzigAction()
+        a = P.randomImprovingAction()
         P.step(a)
         acts.append(a)
         steps += 1
