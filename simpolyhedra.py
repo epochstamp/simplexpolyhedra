@@ -1,6 +1,6 @@
 import sys
 import math
-import gym
+#import gym
 import numpy as np
 from scipy import optimize
 import scipy
@@ -103,8 +103,7 @@ class SimPolyhedra():
             self.basis = feasibleBasis(self.A,self.b)
         elif initBasis == -1:
             """ Does not work in general case """
-            half_basis = np.random.choice(a=[False, True], size=(self.n//2))
-            self.basis = np.hstack([half_basis, ~half_basis]).tolist()
+            self.basis = poly.randomCubeBasis(self.n//2)
         else:
             self.basis = initBasis
         
@@ -201,7 +200,7 @@ if __name__ == '__main__':
     2 ways to initialize a basis
     automatically (with no input) :
     """
-    P.reset()
+    P.reset(-1)
     """
     or directly by specifying a basis :
     """

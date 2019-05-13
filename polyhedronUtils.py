@@ -12,5 +12,5 @@ def cube(n):
     return A,b
     
 def randomCubeBasis(n):
-    half_basis = np.random.choice(a=[False, True], size=(n//2))
+    half_basis = np.random.choice(a=[False, True], size=n)
     return np.hstack([half_basis, ~half_basis]).tolist()
