@@ -7,6 +7,10 @@ def standardForm(A,b,c):
     return A,b,c
 
 def cube(n):
-	A = np.eye(n)
-	b = np.ones([n,1])
-	return A,b
+    A = np.eye(n)
+    b = np.ones([n,1])
+    return A,b
+    
+def randomCubeBasis(n):
+    half_basis = np.random.choice(a=[False, True], size=(n//2))
+    return np.hstack([half_basis, ~half_basis]).tolist()

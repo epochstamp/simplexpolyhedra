@@ -26,7 +26,7 @@ def feasibleBasis(A,b,method='SimPolyhedra'):
             a = P.dantzigAction()
             P.step(a)
         
-        return P.basis
+        return P.basis[:n]
         
     elif method == 'scipy':
         result = scipy.optimize.linprog(c,A_ub=A_p,b_ub=b)
@@ -39,7 +39,7 @@ def feasibleBasis(A,b,method='SimPolyhedra'):
                     basis[i] = True
                     s += 1
                 i += 1
-            return basis
+            return basis[:n]
         else:
             print("Error : no feasible basis found")
     
@@ -102,6 +102,7 @@ class SimPolyhedra():
         if initBasis is None:
             self.basis = feasibleBasis(self.A,self.b)
         elif initBasis == -1:
+            """ Does not work in general case """
             half_basis = np.random.choice(a=[False, True], size=(self.n//2))
             self.basis = np.hstack([half_basis, ~half_basis]).tolist()
         else:
@@ -113,11 +114,12 @@ class SimPolyhedra():
         b_r = A_B_inv.dot(self.b)
         c_r = self.c - self.c[0,self.basis].dot(A_r)
         z_r = -self.c[:,self.basis].dot(b_r)
+        
         # Storage of informations on basic variables
         self.rowVar = []
         for i in range(self.n):
             if self.basis[i]:
-                self.rowVar += [i]
+                self.rowVar.append(i)
         
         # Creation of the state (containing the entire simplex "tableau" )
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
@@ -128,8 +130,11 @@ class SimPolyhedra():
         return self.observe().flatten().shape[0]
 
     def getAvailableActions(self):
-        return list(filter(lambda i : not self.basis[i], range(self.n)))
+        return [i for i in range(self.n) if not self.basis[i]]
     
+    def dantzigAction(self):
+        return np.argmin(self.state[0,1:])
+        
     def step(self, act):
         """
         Transition step from state to successor given a discrete action
@@ -189,10 +194,6 @@ class SimPolyhedra():
     def isOptimal(self):
         return (self.state[0,1:] >= 0).all()
     
-
-    def dantzigAction(self):
-        return np.argmin(self.state[0,1:])
-        
 if __name__ == '__main__':
     n = 50
     P = SimPolyhedra.cube(n)
@@ -200,7 +201,7 @@ if __name__ == '__main__':
     2 ways to initialize a basis
     automatically (with no input) :
     """
-    P.reset(-1)
+    P.reset()
     """
     or directly by specifying a basis :
     """
@@ -213,7 +214,7 @@ if __name__ == '__main__':
     steps = 0
     acts = []
     while not P.isOptimal():
-        a = P.greatestImprovementAction()
+        a = P.dantzigAction()
         P.step(a)
         acts.append(a)
         steps += 1
@@ -227,5 +228,4 @@ if __name__ == '__main__':
     expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n//2)])
     print("Expected number of steps : " + str(expected_steps))
     print("Number of steps : " + str(steps))
-    print("History of actions  + uniqueness: ", acts, len(set(acts)) == len(acts))
-        
+    print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
