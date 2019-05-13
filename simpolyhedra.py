@@ -134,12 +134,33 @@ class SimPolyhedra():
     def getImprovingActions(self):
         return [i for i in range(self.n) if not self.basis[i] and self.state[0,1+i] < 0]
     
-    
     def randomImprovingAction(self):
         return np.random.choice(self.getImprovingActions())
     
     def dantzigAction(self):
         return np.argmin(self.state[0,1:])
+        
+    def greatestImprovementAction(self):
+        max_obj = -np.inf
+        argmax_obj = -1
+        for act in range(self.n):
+            e,m = -1,np.inf
+            for i in range(self.m):
+                if self.state[1+i,1+act] > 0:
+                    r = self.state[1+i,0]/self.state[1+i,1+act]
+                    if r <= m:
+                        m = r
+                        e = i
+            
+            # e == -1 means the polyhedron is not bounded (Section 1.3 step 2)
+            assert(e != -1)
+            
+            obj = self.state[0,0] - self.state[1+e,0]*self.state[0,1+act]/self.state[1+e,1+act]
+            if obj > max_obj:
+                argmax_obj = act
+                max_obj = obj
+        
+        return argmax_obj
         
     def step(self, act):
         """
@@ -220,7 +241,7 @@ if __name__ == '__main__':
     steps = 0
     acts = []
     while not P.isOptimal():
-        a = P.randomImprovingAction()
+        a = P.greatestImprovementAction()
         P.step(a)
         acts.append(a)
         steps += 1
