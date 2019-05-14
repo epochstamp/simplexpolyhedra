@@ -7,6 +7,7 @@ import time
 from sklearn.ensemble import ExtraTreesRegressor
 import mpu.ml
 from simpolyhedra import SimPolyhedra
+import polyhedronutils as poly
 from copy import deepcopy
 
 """
@@ -30,7 +31,7 @@ class FQI_Agent(object):
         LS = []
         env = self.env
         envs = [deepcopy(env) for _ in range(N)]
-        states = [e.reset(-1) for e in envs]
+        states = [e.reset(poly.randomCubeBasis(e.n//2)) for e in envs]
         range_N = range(N)
         range_steps = range(steps)
         act_histories = [[] for _ in range_N]
@@ -67,7 +68,7 @@ class FQI_Agent(object):
 
 
     def toLearningSet(self, LT, i):
-        self.env.reset(-1)
+        self.env.reset(poly.randomCubeBasis(self.env.n//2))
         if self.LS is None:
             self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], int_to_onehot(x[1], env.getNumberOfActions()), x[3],  [x[2]], [x[4]]]).tolist(),LT)))
         # On first iteration, output is the reward
@@ -104,7 +105,7 @@ class FQI_Agent(object):
         
 
     def test(self):
-        state = self.env.reset(-1)
+        state = self.env.reset(poly.randomCubeBasis(self.env.n//2))
         done = False
         n_actions = env.getNumberOfActions()
         i = 0

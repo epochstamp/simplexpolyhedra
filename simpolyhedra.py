@@ -1,12 +1,12 @@
 import sys
 import math
-import gym
+#import gym
 import numpy as np
 from scipy import optimize
 import scipy
 import time
 
-import polyhedronUtils as poly
+import polyhedronutils as poly
 
 def feasibleBasis(A,b,method='SimPolyhedra'):
     m = A.shape[0]
@@ -79,33 +79,57 @@ class SimPolyhedra():
         Parameters :
             - n (integer) - dimension of the cube
             - obj (str) - 'random' for a random objective
+                        - 'pos_random' for a random positive objective
                         - 'unit' for an unit objective (sum of coordinates)
                         - 'negunit' for the opposite unit objective (-sum of coordinates)
         """
         A,b = poly.cube(n)
-        if obj == 'random':
-            c = np.random.random([1,n])-0.5
-        elif obj == 'unit':
-            c = np.ones([1,n])
-        elif obj == 'negunit':
-            c = -np.ones([1,n])
+        c = poly.objective(n,obj)
             
         A,b,c = poly.standardForm(A,b,c)
         
         return SimPolyhedra(A,b,c)
         
-    def reset(self,initBasis=None):
+    def randomSpindle(n,cond=100,obj='random'):
+        """
+        Instantiation of a Simplex-Polyhedra on a
+        n-dimensional spindle
+        Parameters :
+            - n (integer) - dimension of the spindle
+            - cond (float) - condition number of the spindle
+            - obj (str) - 'random' for a random objective
+                        - 'pos_random' for a random positive objective
+                        - 'unit' for an unit objective (sum of coordinates)
+                        - 'neg_unit' for the opposite unit objective (-sum of coordinates)
+        """
+        A,b = poly.spindle_random(n,cond)
+        c = poly.objective(n,obj)
+            
+        A,b,c = poly.standardForm(A,b,c)
+        
+        return SimPolyhedra(A,b,c)
+        
+    def randomPolyhedron(n):
+        A = -np.random.random([2*n,n])
+        b = np.zeros([2*n,1])
+        b[:,0] = np.sum(A,axis=1)/2.
+        A = np.vstack([A,np.eye(n)])
+        b = np.vstack([b,np.ones([n,1])*100])
+        c = poly.objective(n,'pos_random')
+            
+        A,b,c = poly.standardForm(A,b,c)
+        
+        return SimPolyhedra(A,b,c)
+        
+    def reset(self,initBasis=None,randomSteps=0):
         """
         Sample and return an initial state
         (may be fixed)
         """
         if initBasis is None:
             self.basis = feasibleBasis(self.A,self.b)
-        elif initBasis == -1:
-            """ Does not work in general case """
-            self.basis = poly.randomCubeBasis(self.n//2)
         else:
-            self.basis = initBasis
+            self.basis = initBasis[:]
         
         # These expressions can be seen in Section 1.2
         A_B_inv = np.linalg.inv(self.A[:,self.basis])
@@ -122,6 +146,10 @@ class SimPolyhedra():
         
         # Creation of the state (containing the entire simplex "tableau" )
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
+        
+        for k in range(randomSteps):
+            a = np.random.choice(self.getAvailableActions())
+            self.step(a)
         
         return self.observe()
 
@@ -142,7 +170,7 @@ class SimPolyhedra():
         
     def greatestImprovementAction(self):
         max_obj = -np.inf
-        argmax_obj = -1
+        argmax_obj = None
         for act in range(self.n):
             e,m = -1,np.inf
             for i in range(self.m):
@@ -161,6 +189,17 @@ class SimPolyhedra():
                 max_obj = obj
         
         return argmax_obj
+    
+    def steepestEdgeAction(self):
+        min_c = np.inf
+        argmin_c = None
+        for act in range(self.n):
+            c = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
+            if c < min_c:
+                min_c = c
+                argmin_c = act
+        
+        return argmin_c
         
     def step(self, act):
         """
@@ -219,7 +258,8 @@ class SimPolyhedra():
         return x
             
     def isOptimal(self):
-        return (self.state[0,1:] >= 0).all()
+        return (self.state[0,1:]+0.0001 >= 0).all()
+    
     
 if __name__ == '__main__':
     n = 50
@@ -228,23 +268,34 @@ if __name__ == '__main__':
     2 ways to initialize a basis
     automatically (with no input) :
     """
-    P.reset(-1)
+    #P.reset()
     """
     or directly by specifying a basis :
     """
-    #P.reset([True]*n + [False]*n)
+    P.reset(poly.cube_randomBasis(n))
+    """
+    when you specify a basis, 
+    you can also specify a number of random steps. 
+    This will generate a random path from the 
+    initial basis, giving you a random basis
+    """
+    #P.reset(poly.cube_randomBasis(n),100)
     
     """ We look at the initial feasible base i.e the initial vertex """
     reference_basis = P.basis[:]
     
     """ Dantzig's rule """
+    P.reset(reference_basis)
     steps = 0
     acts = []
     while not P.isOptimal():
-        a = P.greatestImprovementAction()
+        print("Objective = " + str(P.objective()))
+        a = P.dantzigAction()
         P.step(a)
         acts.append(a)
         steps += 1
+    print("Objective = " + str(P.objective()))
+    print("")
     
     expected = sum(P.c[P.c<=0])
     print("Expected objective: " + str(expected))
@@ -252,7 +303,58 @@ if __name__ == '__main__':
     print("")
     
     """ For a cube, we know the expected number of steps """
-    expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n//2)])
+    expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n)])//2
     print("Expected number of steps : " + str(expected_steps))
     print("Number of steps : " + str(steps))
     print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
+    print("")
+    
+    """ Greatest Improve rule """
+    P.reset(reference_basis)
+    steps = 0
+    acts = []
+    while not P.isOptimal():
+        print("Objective = " + str(P.objective()))
+        a = P.greatestImprovementAction()
+        P.step(a)
+        acts.append(a)
+        steps += 1
+    print("Objective = " + str(P.objective()))
+    print("")
+    
+    expected = sum(P.c[P.c<=0])
+    print("Expected objective: " + str(expected))
+    print("Objective: " + str(P.objective()))
+    print("")
+    
+    """ For a cube, we know the expected number of steps """
+    expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n)])//2
+    print("Expected number of steps : " + str(expected_steps))
+    print("Number of steps : " + str(steps))
+    print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
+    print("")
+    
+    """ Steepest edge rule """
+    P.reset(reference_basis)
+    steps = 0
+    acts = []
+    while not P.isOptimal():
+        print("Objective = " + str(P.objective()))
+        a = P.steepestEdgeAction()
+        P.step(a)
+        acts.append(a)
+        steps += 1
+    print("Objective = " + str(P.objective()))
+    print("")
+    
+    expected = sum(P.c[P.c<=0])
+    print("Expected objective: " + str(expected))
+    print("Objective: " + str(P.objective()))
+    print("")
+    
+    """ For a cube, we know the expected number of steps """
+    expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n)])//2
+    print("Expected number of steps : " + str(expected_steps))
+    print("Number of steps : " + str(steps))
+    print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
+    print("")
