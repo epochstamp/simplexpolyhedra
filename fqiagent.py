@@ -5,25 +5,24 @@ import numpy as np
 import scipy
 import time
 from sklearn.ensemble import ExtraTreesRegressor
-import mpu.ml
+
 from simpolyhedra import SimPolyhedra
 import polyhedronutils as poly
 from copy import deepcopy
+from joblib import dump
 
 """
         Fitted-Q-Iteration Agent (FQI) with Extra Trees. For continuous state space and discrete state space.
         See http://www.jmlr.org/papers/volume6/ernst05a/ernst05a.pdf
 """
 
-def int_to_onehot(i, n):
-    return mpu.ml.indices2one_hot([i], nb_classes=n)[0]
 
 class FQI_Agent(object):
 
 
     def __init__(self, env, d_prob=2.0):
         self.env = env
-        self.RC = ExtraTreesRegressor(n_estimators=200, n_jobs=3)
+        self.RC = ExtraTreesRegressor(n_estimators=200, n_jobs=4)
         self.LS = None
         self.d_prob = d_prob
 
@@ -31,7 +30,7 @@ class FQI_Agent(object):
         LS = []
         env = self.env
         envs = [deepcopy(env) for _ in range(N)]
-        states = [e.reset(poly.randomCubeBasis(e.n//2)) for e in envs]
+        states = [e.reset(poly.cube_randomBasis(e.n//2)) for e in envs]
         range_N = range(N)
         range_steps = range(steps)
         act_histories = [[] for _ in range_N]
@@ -68,9 +67,9 @@ class FQI_Agent(object):
 
 
     def toLearningSet(self, LT, i):
-        self.env.reset(poly.randomCubeBasis(self.env.n//2))
+        self.env.reset(poly.cube_randomBasis(self.env.n//2))
         if self.LS is None:
-            self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], int_to_onehot(x[1], env.getNumberOfActions()), x[3],  [x[2]], [x[4]]]).tolist(),LT)))
+            self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], env.postprocess_action(x[1], mode=0), x[3],  [x[2]], [x[4]]]).tolist(),LT)))
         # On first iteration, output is the reward
         if i == 0:
             return self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()], self.LS[:,-1]
@@ -82,7 +81,7 @@ class FQI_Agent(object):
         Q_matrix = np.ones((inp.shape[0],env.getNumberOfActions()))
         j = 0
         for a in range(env.getNumberOfActions()):
-            onehot_a = int_to_onehot(a, env.getNumberOfActions())
+            onehot_a = env.postprocess_action(a, mode=0)
             tiles = np.tile(onehot_a,(inp.shape[0],1))
             inp_temp = np.hstack([inp_next, tiles])
             out_temp = self.RC.predict(inp_temp)
@@ -94,7 +93,7 @@ class FQI_Agent(object):
         return (inp, out)
 
     def train(self, I):
-        L = self.generateRandomTuples(100, 250)
+        L = self.generateRandomTuples(200, 250)
         print("FQI training")
         for i in range(I):
             print("Iteration ",i,"/",I)
@@ -105,33 +104,58 @@ class FQI_Agent(object):
         
 
     def test(self):
-        state = self.env.reset(poly.randomCubeBasis(self.env.n//2))
-        done = False
         n_actions = env.getNumberOfActions()
-        i = 0
-        self.RC.n_jobs = 1
-        while not done and i < 1000:
-            max_a = -np.inf
-            argmax_a = None
-            for a in env.getAvailableActions():
-                inp = np.hstack([state, int_to_onehot(a, n_actions)])
-                pred = self.RC.predict([inp])[0]
-                if pred > max_a:
-                    max_a = pred
-                    argmax_a = a
-            if max_a == -np.inf:
-                done = True
-            else: state, reward, done, _ = self.env.step(argmax_a)
-            i += 1
-        if not done:
-            print("Optimal solution not found :(")
-        else:
-            print("Optimal solution found in ", i, " steps !")
+        success_rate = 0
+        K = 10
+        N = 500
+        regret_lst = []
+        print("Test on ", K, " random basis, limit of ",N," steps : ")
+        for _ in range(K):
+            done = False
+            state = self.env.reset(poly.cube_randomBasis(self.env.n//2))
+            i = 0
+
+            #Firstly compute the optimal path
+            while not done and i < N:
+                _, _, done, _ = self.env.step(self.env.dantzigAction())
+                i += 1
+            optimal_steps = i
+            print("True optimal path is ",optimal_steps," steps !")
+
+            self.RC.n_jobs = 1
+            state = self.env.reset(poly.cube_randomBasis(self.env.n//2))
+            done = False
+            i = 0
+            while not done and i < N:
+                max_a = -np.inf
+                argmax_a = None
+                for a in env.getAvailableActions():
+                    inp = np.hstack([state, env.postprocess_action(a, 0)])
+                    pred = self.RC.predict([inp])[0]
+                    if pred > max_a:
+                        max_a = pred
+                        argmax_a = a
+                if max_a == -np.inf:
+                    break
+                else: state, _, done, _ = self.env.step(argmax_a)
+                i += 1
+            if not done:
+                print("Optimal solution not found :(")
+            else:
+                policy_steps = i
+                print("Optimal solution found in ", i, " steps !")
+                success_rate += 1
+                regret_lst.append(np.abs(optimal_steps - policy_steps))
+        print("Success rate : ",str(float(success_rate/K)))
+        print("Mean 'regret' : ", np.mean(regret_lst) if len(regret_lst) > 0 else -np.inf)
+        print("Variance 'regret' : ", np.var(regret_lst) if len(regret_lst) > 1 else 0)
+        
          
 if __name__=="__main__":
     env = SimPolyhedra.cube(50)
     agt = FQI_Agent(env)
     print("Training process...")
-    agt.train(50)
+    agt.train(75)
     print("Training done. Performing test...")
-    agt.test()
+    agt.test() 
+    dump(agt.RC,"trees.dmp")

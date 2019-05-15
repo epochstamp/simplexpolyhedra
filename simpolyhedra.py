@@ -5,7 +5,7 @@ import numpy as np
 from scipy import optimize
 import scipy
 import time
-
+import mpu.ml
 import polyhedronutils as poly
 
 def feasibleBasis(A,b,method='SimPolyhedra'):
@@ -167,6 +167,20 @@ class SimPolyhedra():
     
     def dantzigAction(self):
         return np.argmin(self.state[0,1:])
+
+    def postprocess_action(self,a,mode=0):
+        if mode == 0:
+            return self.actionToOneHot(a)
+        elif mode == 1:
+            return self.actionToDistanceToRCost(a)
+
+        raise NotImplementedError("Mode not recognized")
+
+    def actionToOneHot(self,a):
+        return mpu.ml.indices2one_hot([a], nb_classes=self.n)[0]
+
+    def actionToDistanceToRCost(self,a):
+        return np.square(np.min(self.state[0,1:]) - self.state[0,a+1])
         
     def greatestImprovementAction(self):
         max_obj = -np.inf
