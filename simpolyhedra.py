@@ -146,7 +146,6 @@ class SimPolyhedra():
         
         # Creation of the state (containing the entire simplex "tableau" )
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
-        
         for k in range(randomSteps):
             a = np.random.choice(self.getAvailableActions())
             self.step(a)

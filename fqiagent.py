@@ -4,8 +4,8 @@ import gym
 import numpy as np
 import scipy
 import time
-from sklearn.ensemble import ExtraTreesRegressor
-
+from sklearn.experimental import enable_hist_gradient_boosting
+from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor, HistGradientBoostingRegressor
 from simpolyhedra import SimPolyhedra
 import polyhedronutils as poly
 from copy import deepcopy
@@ -22,7 +22,7 @@ class FQI_Agent(object):
 
     def __init__(self, env, d_prob=2.0):
         self.env = env
-        self.RC = ExtraTreesRegressor(n_estimators=200, n_jobs=4)
+        self.RC = ExtraTreesRegressor(n_estimators=250, n_jobs=4)
         self.LS = None
         self.d_prob = d_prob
 
@@ -72,7 +72,7 @@ class FQI_Agent(object):
             self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], env.postprocess_action(x[1], mode=0), x[3],  [x[2]], [x[4]]]).tolist(),LT)))
         # On first iteration, output is the reward
         if i == 0:
-            return self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()], self.LS[:,-1]
+            return self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()], self.LS[:,-2]
         # Otherwise, output is r + gamma*max_a Q(s,a)
         # Integer action is converted to one-hot vector.
         inp = self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()]
@@ -93,13 +93,13 @@ class FQI_Agent(object):
         return (inp, out)
 
     def train(self, I):
-        L = self.generateRandomTuples(200, 250)
+        L = self.generateRandomTuples(250, 250)
         print("FQI training")
         for i in range(I):
-            print("Iteration ",i,"/",I)
+            print("Iteration ",i+1,"/",I)
             print("Prepare learning set")
             inp, out = agt.toLearningSet(L, i)
-            print("Iterate on extra trees")
+            print("Iterate on regressor")
             self.RC.fit(inp,out)
         
 
@@ -107,12 +107,13 @@ class FQI_Agent(object):
         n_actions = env.getNumberOfActions()
         success_rate = 0
         K = 10
-        N = 500
+        N = 100
         regret_lst = []
         print("Test on ", K, " random basis, limit of ",N," steps : ")
         for _ in range(K):
+            initial_state = poly.cube_randomBasis(self.env.n//2)
             done = False
-            state = self.env.reset(poly.cube_randomBasis(self.env.n//2))
+            state = self.env.reset(initial_state)
             i = 0
 
             #Firstly compute the optimal path
@@ -123,7 +124,7 @@ class FQI_Agent(object):
             print("True optimal path is ",optimal_steps," steps !")
 
             self.RC.n_jobs = 1
-            state = self.env.reset(poly.cube_randomBasis(self.env.n//2))
+            state = self.env.reset(initial_state)
             done = False
             i = 0
             while not done and i < N:
@@ -143,7 +144,7 @@ class FQI_Agent(object):
                 print("Optimal solution not found :(")
             else:
                 policy_steps = i
-                print("Optimal solution found in ", i, " steps !")
+                print("Optimal solution found in ", policy_steps, " steps with trees policy !")
                 success_rate += 1
                 regret_lst.append(np.abs(optimal_steps - policy_steps))
         print("Success rate : ",str(float(success_rate/K)))
@@ -155,7 +156,7 @@ if __name__=="__main__":
     env = SimPolyhedra.cube(50)
     agt = FQI_Agent(env)
     print("Training process...")
-    agt.train(75)
+    agt.train(50)
     print("Training done. Performing test...")
     agt.test() 
     dump(agt.RC,"trees.dmp")
