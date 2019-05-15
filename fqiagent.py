@@ -22,7 +22,7 @@ class FQI_Agent(object):
 
     def __init__(self, env, d_prob=2.0):
         self.env = env
-        self.RC = ExtraTreesRegressor(n_estimators=250, n_jobs=4)
+        self.RC = ExtraTreesRegressor(n_estimators=250, n_jobs=-1)
         self.LS = None
         self.d_prob = d_prob
 
