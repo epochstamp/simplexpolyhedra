@@ -149,6 +149,8 @@ class SimPolyhedra():
             if self.basis[i]:
                 self.rowVar.append(i)
         
+        self.entered = [0 for k in range(self.n)]
+        
         # Creation of the state (containing the entire simplex "tableau" )
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
 
@@ -158,7 +160,7 @@ class SimPolyhedra():
             
         for k in range(randomSteps):
             a = np.random.choice(self.getAvailableActions())
-            self.step(a)
+            self.step(a,False)
         
         return self.observe()
 
@@ -240,7 +242,26 @@ class SimPolyhedra():
         
         return argmin_c
         
-    def step(self, act):
+    def leastEnteredAction(self):
+        min_e = np.inf
+        argmin_e = None
+        tie = None
+        for act in range(self.n):
+            if not self.basis[act] and self.state[0,1+act] <= 0:
+                e = self.entered[act]
+                if e < min_e:
+                    min_e = e
+                    argmin_e = act
+                    tie = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
+                elif e == min_e:
+                    c = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
+                    if c < tie:
+                        min_e = e
+                        argmin_e = act
+                        tie = c
+        return argmin_e
+        
+    def step(self, act, trueStep=True):
         """
         Transition step from state to successor given a discrete action
         Parameters : 
@@ -272,6 +293,9 @@ class SimPolyhedra():
             self.basis[self.rowVar[e]] = False
             self.basis[act] = True
             self.rowVar[e] = act
+            
+            if trueStep:
+                self.entered[act] += 1
             
             # Termination if optimal
             if self.isOptimal():
@@ -389,6 +413,32 @@ if __name__ == '__main__':
     print("Expected objective: " + str(expected))
     print("Objective: " + str(P.objective()))
     print("")
+    
+    """ For a cube, we know the expected number of steps """
+    expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n)])//2
+    print("Expected number of steps : " + str(expected_steps))
+    print("Number of steps : " + str(steps))
+    print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
+    print("")
+
+    """ Least entered rule """
+    P.reset(reference_basis)
+    steps = 0
+    acts = []
+    while not P.isOptimal():
+        print("Objective = " + str(P.objective()))
+        a = P.leastEnteredAction()
+        P.step(a)
+        acts.append(a)
+        steps += 1
+    print("Objective = " + str(P.objective()))
+    print("")
+    
+    expected = sum(P.c[P.c<=0])
+    print("Expected objective: " + str(expected))
+    print("Objective: " + str(P.objective()))
+    print("")
+    
     
     """ For a cube, we know the expected number of steps """
     expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n)])//2
