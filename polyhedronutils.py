@@ -29,6 +29,10 @@ def objective(n,obj):
     elif obj == 'zero':
         return np.zeros([1,n])
     
+def conditionNumber(A):
+    U,D,Vh = np.linalg.svd(A)
+    return D[0]/D[-1]
+    
 def cube(n):
     """
         Generates the n-dimensional unit cube
@@ -67,7 +71,7 @@ def cube_unitBasis(n):
     """
     return [True]*n + [False]*n
     
-def spindle_random(n,K=10000):
+def spindle_random(n,K=10):
     """
         Generates a random n-dimensional spindle
         Parameters : 
@@ -91,10 +95,16 @@ def spindle_random(n,K=10000):
     
     # We want to control the condition number so we mess a bit
     # with singular values of the matrix of radiuses
-    U,D,Vh = np.linalg.svd(S)
-    K_S = D[0]/D[n-1]
-    k = math.log(K*n)/math.log(K_S)
-    D **= k
+    #U,D,Vh = np.linalg.svd(S)
+    #K_S = D[0]/D[n-1]
+    #k = math.log(K)/math.log(K_S)
+    #D **= k
+    #if K > 1:
+    #    eps = (D[0] - K*D[n-1])/(K-1)
+    #    D = D + eps
+    #else:
+    #    D = np.ones(D.shape)
+    #S = U*D*Vh
     
     # Translation of y such that x = (0,...,0) is in the cone of origin y and radiuses S[:,i]
     sigma = np.random.random([n,1])
@@ -142,3 +152,4 @@ def spindle_randomStepsCount(n):
             - n (integer) : dimension of the spindle
     """
     return 4*n
+    

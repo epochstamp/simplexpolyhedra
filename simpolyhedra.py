@@ -1,6 +1,6 @@
 import sys
 import math
-#import gym
+import gym
 import numpy as np
 from scipy import optimize
 import scipy
@@ -51,7 +51,7 @@ class SimPolyhedra():
     """
     def gamma(self): return 0.95
 
-    def __init__(self, A, b, c):
+    def __init__(self, A, b, c, type = 'polyhedron'):
         """
         Instantiation of a Simplex-Polyhedra problem
         for standardized linear programs (represented
@@ -62,6 +62,9 @@ class SimPolyhedra():
             - A (m x n matrix) - constraint matrix
             - b (m x 1 matrix) - constraint bounds (such that Ax <= b)
             - c (1 x n matrix) - variable costs
+            - type (str) - type of the polyhedron : - 'polyhedron' is the general type (when no type is specified)
+                                                    - 'unitcube' is a unit cube
+                                                    - 'spindle' is a spindle
         """
         self.m = b.shape[0]
         self.n = c.shape[1]
@@ -69,6 +72,8 @@ class SimPolyhedra():
         self.A = A
         self.b = b
         self.c = c
+        
+        self.type = type
 
     def getNumberOfActions(self): return self.n
 
@@ -88,7 +93,7 @@ class SimPolyhedra():
             
         A,b,c = poly.standardForm(A,b,c)
         
-        return SimPolyhedra(A,b,c)
+        return SimPolyhedra(A,b,c,'unitcube')
         
     def randomSpindle(n,cond=100,obj='random'):
         """
@@ -107,7 +112,7 @@ class SimPolyhedra():
             
         A,b,c = poly.standardForm(A,b,c)
         
-        return SimPolyhedra(A,b,c)
+        return SimPolyhedra(A,b,c,'spindle')
         
     def randomPolyhedron(n):
         A = -np.random.random([2*n,n])
@@ -127,7 +132,7 @@ class SimPolyhedra():
         (may be fixed)
         """
         if initBasis is None:
-            self.basis = feasibleBasis(self.A,self.b)
+            self.basis = self.feasibleBasis()
         else:
             self.basis = initBasis[:]
         
@@ -146,12 +151,33 @@ class SimPolyhedra():
         
         # Creation of the state (containing the entire simplex "tableau" )
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
+
+        # Random steps to find a random basis
+        if initBasis is None and randomSteps == 0:
+            randomSteps = self.autoRandomSteps()
+            
         for k in range(randomSteps):
             a = np.random.choice(self.getAvailableActions())
             self.step(a)
         
         return self.observe()
 
+    def feasibleBasis(self):
+        if self.type == 'polyhedron':
+            return feasibleBasis(self.A,self.b)
+        elif self.type == 'unitcube':
+            return poly.cube_randomBasis(self.n-self.m)
+        elif self.type == 'spindle':
+            return poly.spindle_randomExtremityBasis(self.n-self.m)
+        
+    def autoRandomSteps(self):
+        if self.type == 'polyhedron':
+            return 0
+        elif self.type == 'unitcube':
+            return 0
+        elif self.type == 'spindle':
+            return poly.spindle_randomStepsCount(self.n-self.m)
+        
     def getStateSize(self):
         return self.observe().flatten().shape[0]
 
@@ -237,11 +263,10 @@ class SimPolyhedra():
             assert(e != -1)
             
             # Applying computations seen in Section 1.3 step 3
-            E = np.eye(self.m+1)
-            E[:,1+e] = -self.state[:,1+act]/self.state[1+e,1+act]
-            E[1+e,1+e] = 1./self.state[1+e,1+act]
-            
-            self.state = E.dot(self.state)
+            for i in range(self.m+1):
+                if i != 1+e:
+                    self.state[i,:] -= self.state[1+e,:]*self.state[i,1+act]/self.state[1+e,1+act]
+            self.state[1+e,:] /= self.state[1+e,1+act]
             
             # Update of informations on basic variables
             self.basis[self.rowVar[e]] = False
@@ -270,8 +295,8 @@ class SimPolyhedra():
             x[self.rowVar[i]] = self.state[1+i,0]
         return x
             
-    def isOptimal(self):
-        return (self.state[0,1:]+0.0001 >= 0).all()
+    def isOptimal(self,tol=1e-8):
+        return (self.state[0,1:]+tol >= 0).all()
     
     
 if __name__ == '__main__':
@@ -281,11 +306,11 @@ if __name__ == '__main__':
     2 ways to initialize a basis
     automatically (with no input) :
     """
-    #P.reset()
+    P.reset()
     """
     or directly by specifying a basis :
     """
-    P.reset(poly.cube_randomBasis(n))
+    #P.reset(poly.cube_randomBasis(n))
     """
     when you specify a basis, 
     you can also specify a number of random steps. 
@@ -354,6 +379,31 @@ if __name__ == '__main__':
     while not P.isOptimal():
         print("Objective = " + str(P.objective()))
         a = P.steepestEdgeAction()
+        P.step(a)
+        acts.append(a)
+        steps += 1
+    print("Objective = " + str(P.objective()))
+    print("")
+    
+    expected = sum(P.c[P.c<=0])
+    print("Expected objective: " + str(expected))
+    print("Objective: " + str(P.objective()))
+    print("")
+    
+    """ For a cube, we know the expected number of steps """
+    expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n)])//2
+    print("Expected number of steps : " + str(expected_steps))
+    print("Number of steps : " + str(steps))
+    print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
+    print("")
+
+    """ Random rule """
+    P.reset(reference_basis)
+    steps = 0
+    acts = []
+    while not P.isOptimal():
+        print("Objective = " + str(P.objective()))
+        a = P.randomImprovingAction()
         P.step(a)
         acts.append(a)
         steps += 1
