@@ -77,6 +77,9 @@ class SimPolyhedra():
 
     def getNumberOfActions(self): return self.n
 
+    def sizeOfActionVector(self, mode=0):
+        return self.n if mode == 0 else 1
+
     def cube(n,obj='random'):
         """
         Instantiation of a Simplex-Polyhedra on a
@@ -199,7 +202,7 @@ class SimPolyhedra():
         if mode == 0:
             return self.actionToOneHot(a)
         elif mode == 1:
-            return self.actionToDistanceToRCost(a)
+            return [self.actionToDistanceToRCost(a)]
 
         raise NotImplementedError("Mode not recognized")
 

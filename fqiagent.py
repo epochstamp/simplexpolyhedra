@@ -1,6 +1,5 @@
 import sys
 import math
-import gym
 import numpy as np
 import scipy
 import time
@@ -20,15 +19,17 @@ from joblib import dump
 class FQI_Agent(object):
 
 
-    def __init__(self, env, d_prob=2.0):
+    def __init__(self, env, d_prob=1.5):
         self.env = env
-        self.RC = ExtraTreesRegressor(n_estimators=250, n_jobs=-1)
+        self.RC = ExtraTreesRegressor(n_estimators=1000, n_jobs=10, max_features=0.5,max_depth=2*self.env.n + self.env.sizeOfActionVector(mode=1))
         self.LS = None
         self.d_prob = d_prob
+        self.cartesian_SA = None
 
     def generateRandomTuples(self, N, steps):
         LS = []
         env = self.env
+        env.reset()
         envs = [deepcopy(env) for _ in range(N)]
         states = [e.reset() for e in envs]
         range_N = range(N)
@@ -36,19 +37,22 @@ class FQI_Agent(object):
         act_histories = [[] for _ in range_N]
         success = 0
         dantzig_trajectory = [True for _ in range_N]
+        sizes = [0 for _ in range(N)]
         for _ in range_steps:
             
             for i in range_N:
                 if envs[i] is not None:
                     available_acts = list(set(envs[i].getAvailableActions()))
+                    converted_acts = [envs[i].postprocess_action(a, mode=1) for a in available_acts]
                     probs = [1.0/len(available_acts)] * len(available_acts)
                     probs[available_acts.index(envs[i].dantzigAction())] = self.d_prob
                     probs = list(map(lambda x : x / sum(probs), probs))
                     act = np.random.choice(available_acts, p=probs)
                     act_histories[i].append(act)
                     ns, r, done, _ = envs[i].step(act) 
-                    LS.append((states[i],act,r,ns,done))
+                    LS.append((states[i],act,r,ns,done, envs[i].postprocess_action(act, mode=1), converted_acts,available_acts))
                     states[i] = ns
+                    sizes[i] += 1
                     if act != envs[i].dantzigAction():
                         dantzig_trajectory[i] = False  
                     if done:
@@ -58,9 +62,13 @@ class FQI_Agent(object):
             
             
             s = ns
-        print("Number of trajectories : ", N*steps)
+        for i in range(len(sizes)):
+            sizes[i] = sizes[i] if envs[i] is None else np.inf
+        print("Number of transitions : ", N*steps)
         print("Number of successful trajectories : ", success)
-        print("Number of full dantzig trajectories : ", np.sum(dantzig_trajectory))
+        print("Mean length of successful trajectories :", np.mean([s for s in sizes if s < np.inf]))
+        print("Mean var length of successful trajectories :", np.var([s for s in sizes if s < np.inf]))
+        print("Feature size :", self.env.getStateSize() + self.env.sizeOfActionVector(mode=1))
         return LS
 
 
@@ -69,12 +77,57 @@ class FQI_Agent(object):
     def toLearningSet(self, LT, i):
         self.env.reset()
         if self.LS is None:
-            self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], env.postprocess_action(x[1], mode=0), x[3],  [x[2]], [x[4]]]).tolist(),LT)))
+            #self.mapact = {a:env.postprocess_action(a, mode=1) for a in range(self.env.getNumberOfActions())}
+            self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], x[5], x[3],  [x[2]], [x[4]]]).tolist(),LT)))
+            
         # On first iteration, output is the reward
         if i == 0:
-            return self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()], self.LS[:,-2]
+            return self.LS[:,:self.env.getStateSize() + self.env.sizeOfActionVector(mode=1)], self.LS[:,-2]
         # Otherwise, output is r + gamma*max_a Q(s,a)
         # Integer action is converted to one-hot vector.
+
+        if self.cartesian_SA is None:
+            matrix = None 
+            intervals = [] 
+            j = 1
+            k = 0
+            submatrices = []
+            print("Building cartesian product SxA")
+            for _,_,_,ns,_,_,converted_acts,_ in LT:
+                pp_acts = np.vstack(converted_acts)
+                
+                inpnext_tile = np.tile(ns,(pp_acts.shape[0],1))
+                submatrices.append(np.hstack([inpnext_tile, pp_acts]))
+                if (j-1) % 250 == 0:
+                    matrix = np.vstack([matrix] + submatrices) if matrix is not None else np.vstack(submatrices)
+                    submatrices = []
+                
+                
+                len_acts = len(converted_acts)
+                intervals.append((k,k+len_acts))
+                j += 1
+                k += len_acts
+            print("Cartesian product SxA done")
+            self.cartesian_SA = np.vstack([matrix] + submatrices)
+            self.intervals = intervals
+
+        old_njobs = self.RC.n_jobs 
+        self.RC.n_jobs = old_njobs//2
+        print("Go predict")
+        out_temp = self.RC.predict(self.cartesian_SA)
+        print("End predict")
+        self.RC.n_jobs = old_njobs
+        Q_values = []
+
+        for (beg,end) in self.intervals:
+            Q_values.append(np.max(out_temp[beg:end]))
+        maxQ_vector = np.asarray(Q_values)  
+        notdone = 1 - self.LS[:,-1]
+        inp = self.LS[:,:self.env.getStateSize() + self.env.sizeOfActionVector(mode=1)]
+        out = self.LS[:,-2] + env.gamma() * maxQ_vector * notdone
+           
+             
+        """
         inp = self.LS[:,:self.env.getStateSize() + self.env.getNumberOfActions()]
         inp_next = self.LS[:,self.env.getStateSize() + env.getNumberOfActions():2*self.env.getStateSize() + env.getNumberOfActions()]
         
@@ -90,10 +143,11 @@ class FQI_Agent(object):
         maxQ_vector = np.amax(Q_matrix, axis=1)
         notdone = 1 - self.LS[:,-1]
         out = self.LS[:,-2] + env.gamma() * maxQ_vector * notdone
+        """
         return (inp, out)
 
     def train(self, I):
-        L = self.generateRandomTuples(250, 250)
+        L = self.generateRandomTuples(120, 200)
         print("FQI training")
         for i in range(I):
             print("Iteration ",i+1,"/",I)
@@ -130,15 +184,13 @@ class FQI_Agent(object):
             while not done and i < N:
                 max_a = -np.inf
                 argmax_a = None
-                for a in env.getAvailableActions():
-                    inp = np.hstack([state, env.postprocess_action(a, 0)])
+                for a in self.env.getAvailableActions():
+                    inp = np.hstack([state, self.env.postprocess_action(a, mode=1)])
                     pred = self.RC.predict([inp])[0]
                     if pred > max_a:
                         max_a = pred
                         argmax_a = a
-                if max_a == -np.inf:
-                    break
-                else: state, _, done, _ = self.env.step(argmax_a)
+                state, _, done, _ = self.env.step(argmax_a)
                 i += 1
             if not done:
                 print("Optimal solution not found :(")
@@ -156,7 +208,7 @@ if __name__=="__main__":
     env = SimPolyhedra.cube(50)
     agt = FQI_Agent(env)
     print("Training process...")
-    agt.train(50)
+    agt.train(100)
     print("Training done. Performing test...")
     agt.test() 
     dump(agt.RC,"trees.dmp")
