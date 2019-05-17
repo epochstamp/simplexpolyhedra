@@ -69,8 +69,8 @@ class SimPolyhedra():
     def initFeatures(self,tol = 1e-8):
         self.staticFeatures = np.zeros([27,self.n])
         
-        c_pos = np.sum(abs(self.c[self.c > 0]))
-        c_neg = np.sum(abs(self.c[self.c < 0]))
+        c_pos = np.sum(self.c[self.c > 0])
+        c_neg = -np.sum(self.c[self.c < 0])
         
         A_pos = np.zeros([self.m,1])
         A_neg = np.zeros([self.m,1])
@@ -81,39 +81,87 @@ class SimPolyhedra():
         for i in range(self.n):
             # cost function features
             self.staticFeatures[0,i] = sign(self.c[0,i])
-            self.staticFeatures[1,i] = abs(self.c[0,i])/c_pos
-            self.staticFeatures[2,i] = abs(self.c[0,i])/c_neg
+            self.staticFeatures[1,i] = abs(self.c[0,i])/c_pos if c_pos > 0 else -1
+            self.staticFeatures[2,i] = abs(self.c[0,i])/c_neg if c_neg > 0 else -1
             
 
             # constraint coefficient features
-            ppA = self.A[self.A[:,i]>0,i]/A_pos
-            pnA = self.A[self.A[:,i]>0,i]/A_neg
-            npA = self.A[self.A[:,i]<0,i]/A_pos
-            nnA = self.A[self.A[:,i]<0,i]/A_neg
-            
-            self.staticFeatures[3,i] = np.min(ppA) if ppA.shape[1] > 0 else -1
-            self.staticFeatures[4,i] = np.max(ppA) if ppA.shape[1] > 0 else -1
-            self.staticFeatures[5,i] = np.max(pnA) if pnA.shape[1] > 0 else -1
-            self.staticFeatures[6,i] = np.max(pnA) if pnA.shape[1] > 0 else -1
-            self.staticFeatures[7,i] = -np.min(npA) if npA.shape[1] > 0 else -1
-            self.staticFeatures[8,i] = -np.max(npA) if npA.shape[1] > 0 else -1
-            self.staticFeatures[9,i] = -np.max(nnA) if nnA.shape[1] > 0 else -1
-            self.staticFeatures[10,i] = -np.max(nnA) if nnA.shape[1] > 0 else -1
+            for j in range(self.m):
+                mppA = np.inf
+                MppA = -np.inf
+                mpnA = np.inf
+                MpnA = -np.inf
+                mnpA = np.inf
+                MnpA = -np.inf
+                mnnA = np.inf
+                MnnA = -np.inf
+                if self.A[j,i] > 0 :
+                    if A_pos[j,0] > 0:
+                        ppA = self.A[j,i]/A_pos[j,0]
+                        if ppA > MppA:
+                            MppA = ppA
+                        if ppA < mppA:
+                            mppA = ppA
+                    elif A_neg[j,0] < 0:
+                        pnA = self.A[j,i]/A_neg[j,0]
+                        if pnA > MpnA:
+                            MpnA = pnA
+                        if pnA < mpnA:
+                            mpnA = pnA
+                elif self.A[j,i] < 0:
+                    if A_pos[j,0] > 0:
+                        npA = -self.A[j,i]/A_pos[j,0]
+                        if npA > MnpA:
+                            MnpA = npA
+                        if npA < mnpA:
+                            mnpA = npA
+                    elif A_neg[j,0] < 0:
+                        nnA = -self.A[j,i]/A_neg[j,0]
+                        if nnA > MnnA:
+                            MnnA = nnA
+                        if nnA < mnnA:
+                            mnnA = nnA
+                
+            self.staticFeatures[3,i] = mppA if mppA != np.inf else -1
+            self.staticFeatures[4,i] = MppA if MppA != -np.inf else -1
+            self.staticFeatures[5,i] = mpnA if mpnA != np.inf else -1
+            self.staticFeatures[6,i] = MpnA if MpnA != -np.inf else -1
+            self.staticFeatures[7,i] = mnpA if mnpA != np.inf else -1
+            self.staticFeatures[8,i] = MnpA if MnpA != -np.inf else -1
+            self.staticFeatures[9,i] = mnnA if mnnA != np.inf else -1
+            self.staticFeatures[10,i] = MnnA if MnnA != -np.inf else -1
             
             # bounds/constraint features
-            pbA = self.A[self.b[:,0]>0,i]/self.b[self.b[:,0]>0,0]
-            nbA = self.A[self.b[:,0]<0,i]/(-self.b[self.b[:,0]<0,0])
-            self.staticFeatures[11,i] = abs(np.min(pbA)) if pbA.shape[0] > 0 else -1
-            self.staticFeatures[12,i] = sign(np.min(pbA)) if pbA.shape[0] > 0 else 0
-            self.staticFeatures[13,i] = abs(np.max(pbA)) if pbA.shape[0] > 0 else -1
-            self.staticFeatures[14,i] = sign(np.max(pbA)) if pbA.shape[0] > 0 else 0
-            self.staticFeatures[15,i] = abs(np.min(nbA)) if nbA.shape[0] > 0 else -1
-            self.staticFeatures[16,i] = sign(np.min(nbA)) if nbA.shape[0] > 0 else 0
-            self.staticFeatures[17,i] = abs(np.max(nbA)) if nbA.shape[0] > 0 else -1
-            self.staticFeatures[18,i] = sign(np.max(nbA)) if nbA.shape[0] > 0 else 0
+            mpbA = np.inf
+            MpbA = -np.inf
+            mnbA = np.inf
+            MnbA = -np.inf
+            for j in range(self.m):
+                if self.b[j,0] > 0:
+                    pbA = self.A[j,i]/self.b[j,0]
+                    if pbA > MpbA:
+                        MpbA = pbA
+                    if pbA < mpbA:
+                        mpbA = pbA
+                elif self.b[j,0] < 0:
+                    nbA = self.A[j,i]/(-self.b[j,0])
+                    if nbA > MnbA:
+                        MnbA = nbA
+                    if nbA < mnbA:
+                        mnbA = nbA
+                        
+            self.staticFeatures[11,i] = abs(mpbA) if mpbA != np.inf else -1
+            self.staticFeatures[12,i] = sign(mpbA) if mpbA != np.inf else 0
+            self.staticFeatures[13,i] = abs(MpbA) if MpbA != -np.inf else -1
+            self.staticFeatures[14,i] = sign(MpbA) if MpbA != -np.inf else 0
+            self.staticFeatures[15,i] = abs(mnbA) if mnbA != np.inf else -1
+            self.staticFeatures[16,i] = sign(mnbA) if mnbA != np.inf else 0
+            self.staticFeatures[17,i] = abs(MnbA) if MnbA != -np.inf else -1
+            self.staticFeatures[18,i] = sign(MnbA) if MnbA != -np.inf else 0
             
             # cost/constraint features
-            cA = self.c[0,i]/self.A[abs(self.A[:,i]) > tol,i]
+            assert((abs(self.A[:,i]) > tol).any())
+            cA = abs(self.c[0,i])/self.A[abs(self.A[:,i]) > tol,i]
             self.staticFeatures[19,i] = abs(np.min(cA)) if self.c[0,i] >= 0 else -1
             self.staticFeatures[20,i] = sign(np.min(cA)) if self.c[0,i] >= 0 else 0
             self.staticFeatures[21,i] = abs(np.max(cA)) if self.c[0,i] >= 0 else -1
@@ -155,41 +203,84 @@ class SimPolyhedra():
         
         # cost function features
         dynamicFeatures[0] = sign(self.state[0,1+act])
-        dynamicFeatures[1] = abs(self.state[0,1+act])/self.c_pos
-        dynamicFeatures[2] = abs(self.state[0,1+act])/self.c_neg
+        dynamicFeatures[1] = abs(self.state[0,1+act])/self.c_pos if self.c_pos > 0 else -1
+        dynamicFeatures[2] = abs(self.state[0,1+act])/self.c_neg if self.c_neg > 0 else -1
         
         # constraint coefficient features
-        mask = self.state[:,1+act]>tol
-        mask[0] = False
-        ppA = self.state[mask,1+act]/self.A_pos
-        pnA = self.state[mask,1+act]/self.A_neg
-        mask = self.state[:,1+act]<-tol
-        mask[0] = False
-        npA = self.state[mask,1+act]/self.A_pos
-        nnA = self.state[mask,1+act]/self.A_neg
+        for j in range(self.m):
+            mppA = np.inf
+            MppA = -np.inf
+            mpnA = np.inf
+            MpnA = -np.inf
+            mnpA = np.inf
+            MnpA = -np.inf
+            mnnA = np.inf
+            MnnA = -np.inf
+            if self.state[1+j,1+act] > tol :
+                if self.A_pos[j,0] > tol:
+                    ppA = self.state[1+j,1+act]/self.A_pos[j,0]
+                    if ppA > MppA:
+                        MppA = ppA
+                    if ppA < mppA:
+                        mppA = ppA
+                elif self.A_neg[j,0] < -tol:
+                    pnA = self.state[1+j,1+act]/self.A_neg[j,0]
+                    if pnA > MpnA:
+                        MpnA = pnA
+                    if pnA < mpnA:
+                        mpnA = pnA
+            elif self.state[1+j,1+act] < -tol:
+                if self.A_pos[j,0] > tol:
+                    npA = -self.state[1+j,1+act]/self.A_pos[j,0]
+                    if npA > MnpA:
+                        MnpA = npA
+                    if npA < mnpA:
+                        mnpA = npA
+                elif self.A_neg[j,0] < -tol:
+                    nnA = -self.state[1+j,1+act]/self.A_neg[j,0]
+                    if nnA > MnnA:
+                        MnnA = nnA
+                    if nnA < mnnA:
+                        mnnA = nnA
         
-        dynamicFeatures[3] = np.min(ppA) if ppA.shape[1] > 0 else -1
-        dynamicFeatures[4] = np.max(ppA) if ppA.shape[1] > 0 else -1
-        dynamicFeatures[5] = np.max(pnA) if pnA.shape[1] > 0 else -1
-        dynamicFeatures[6] = np.max(pnA) if pnA.shape[1] > 0 else -1
-        dynamicFeatures[7] = -np.min(npA) if npA.shape[1] > 0 else -1
-        dynamicFeatures[8] = -np.max(npA) if npA.shape[1] > 0 else -1
-        dynamicFeatures[9] = -np.max(nnA) if nnA.shape[1] > 0 else -1
-        dynamicFeatures[10] = -np.max(nnA) if nnA.shape[1] > 0 else -1
+        dynamicFeatures[3] = mppA if mppA != np.inf else -1
+        dynamicFeatures[4] = MppA if MppA != -np.inf else -1
+        dynamicFeatures[5] = mpnA if mpnA != np.inf else -1
+        dynamicFeatures[6] = MpnA if MpnA != -np.inf else -1
+        dynamicFeatures[7] = mnpA if mnpA != np.inf else -1
+        dynamicFeatures[8] = MnpA if MnpA != -np.inf else -1
+        dynamicFeatures[9] = mnnA if mnnA != np.inf else -1
+        dynamicFeatures[10] = MnnA if MnnA != -np.inf else -1
         
         # bounds/constraint features
-        mask = self.state[:,0]>tol
-        mask[0] = False
-        pbA = self.state[mask,1+act]/self.state[mask,0]
-        dynamicFeatures[11] = abs(np.min(pbA)) if pbA.shape[0] > 0 else -1
-        dynamicFeatures[12] = sign(np.min(pbA)) if pbA.shape[0] > 0 else 0
-        dynamicFeatures[13] = abs(np.max(pbA)) if pbA.shape[0] > 0 else -1
-        dynamicFeatures[14] = sign(np.max(pbA)) if pbA.shape[0] > 0 else 0
-        
+        mpbA = np.inf
+        MpbA = -np.inf
+        mnbA = np.inf
+        MnbA = -np.inf
+        for j in range(self.m):
+            if self.state[j,0] > tol:
+                pbA = self.state[1+j,1+act]/self.state[j,0]
+                if pbA > MpbA:
+                    MpbA = pbA
+                if pbA < mpbA:
+                    mpbA = pbA
+            elif self.state[j,0] < -tol:
+                nbA = self.state[1+j,1+act]/(-self.state[j,0])
+                if nbA > MnbA:
+                    MnbA = nbA
+                if nbA < mnbA:
+                    mnbA = nbA
+                    
+        dynamicFeatures[11] = abs(mpbA) if mpbA != np.inf else -1
+        dynamicFeatures[12] = sign(mpbA) if mpbA != np.inf else 0
+        dynamicFeatures[13] = abs(MpbA) if MpbA != -np.inf else -1
+        dynamicFeatures[14] = sign(MpbA) if MpbA != -np.inf else 0
+            
         # cost/constraint features
+        assert((abs(self.state[:,1+act]) > tol).any())
         mask = abs(self.state[:,1+act]) > tol
         mask[0] = False
-        cA = self.state[0,1+act]/self.state[mask,1+act]
+        cA = abs(self.state[0,1+act])/self.state[mask,1+act]
         dynamicFeatures[15] = abs(np.min(cA)) if self.state[0,1+act] >= 0 else -1
         dynamicFeatures[16] = sign(np.min(cA)) if self.state[0,1+act] >= 0 else 0
         dynamicFeatures[17] = abs(np.max(cA)) if self.state[0,1+act] >= 0 else -1
