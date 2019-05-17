@@ -86,15 +86,15 @@ class SimPolyhedra():
             
 
             # constraint coefficient features
+            mppA = np.inf
+            MppA = -np.inf
+            mpnA = np.inf
+            MpnA = -np.inf
+            mnpA = np.inf
+            MnpA = -np.inf
+            mnnA = np.inf
+            MnnA = -np.inf
             for j in range(self.m):
-                mppA = np.inf
-                MppA = -np.inf
-                mpnA = np.inf
-                MpnA = -np.inf
-                mnpA = np.inf
-                MnpA = -np.inf
-                mnnA = np.inf
-                MnnA = -np.inf
                 if self.A[j,i] > 0 :
                     if A_pos[j,0] > 0:
                         ppA = self.A[j,i]/A_pos[j,0]
@@ -207,15 +207,15 @@ class SimPolyhedra():
         dynamicFeatures[2] = abs(self.state[0,1+act])/self.c_neg if self.c_neg > 0 else -1
         
         # constraint coefficient features
+        mppA = np.inf
+        MppA = -np.inf
+        mpnA = np.inf
+        MpnA = -np.inf
+        mnpA = np.inf
+        MnpA = -np.inf
+        mnnA = np.inf
+        MnnA = -np.inf
         for j in range(self.m):
-            mppA = np.inf
-            MppA = -np.inf
-            mpnA = np.inf
-            MpnA = -np.inf
-            mnpA = np.inf
-            MnpA = -np.inf
-            mnnA = np.inf
-            MnnA = -np.inf
             if self.state[1+j,1+act] > tol :
                 if self.A_pos[j,0] > tol:
                     ppA = self.state[1+j,1+act]/self.A_pos[j,0]
