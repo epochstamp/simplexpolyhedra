@@ -9,6 +9,7 @@ from simpolyhedra import SimPolyhedra
 import polyhedronutils as poly
 from copy import deepcopy
 from joblib import dump
+import multiprocessing
 
 """
         Fitted-Q-Iteration Agent (FQI) with Extra Trees. For continuous state space and discrete state space.
@@ -19,15 +20,34 @@ from joblib import dump
 class FQI_Agent(object):
 
 
-    def __init__(self, env, d_prob=1.5, feature_mode=0):
+    def __init__(self, env, d_prob=2.0, feature_mode=0):
         self.env = env
-        self.RC = ExtraTreesRegressor(n_estimators=10, n_jobs=1)
+        self.RC = ExtraTreesRegressor(n_estimators=1000, n_jobs=4)
         self.LS = None
         self.d_prob = d_prob
         self.cartesian_SA = None
         self.mode = feature_mode
 
+    def generateEpisode(self, tup):
+        env, steps = tup
+        LS = []
+        state = env.reset()
+        done = False
+        i = 0
+        while not done and i < steps:
+            available_acts = list(set(env.getAvailableActions()))
+            probs = [1.0/len(available_acts)] * len(available_acts)
+            probs[available_acts.index(env.dantzigAction())] = self.d_prob
+            probs = list(map(lambda x : x / sum(probs), probs))
+            act = np.random.choice(available_acts, p=probs)
+            features = env.features(act)
+            ns, r, done, _ = env.step(act) 
+            LS.append((features,r,ns,done, [env.features(a) for a in available_acts]))
+            i += 1
+        return LS 
+
     def generateRandomTuples(self, N, steps):
+        """
         LS = []
         env = self.env
         env.reset()
@@ -37,41 +57,42 @@ class FQI_Agent(object):
         range_steps = range(steps)
         act_histories = [[] for _ in range_N]
         success = 0
-        dantzig_trajectory = [True for _ in range_N]
         sizes = [0 for _ in range(N)]
+        
         for _ in range_steps:
             
             for i in range_N:
                 if envs[i] is not None:
+                    t = time.time()
                     available_acts = list(set(envs[i].getAvailableActions()))
                     probs = [1.0/len(available_acts)] * len(available_acts)
                     probs[available_acts.index(envs[i].dantzigAction())] = self.d_prob
                     probs = list(map(lambda x : x / sum(probs), probs))
                     act = np.random.choice(available_acts, p=probs)
-                    act_histories[i].append(act)
-                    print("hello")
                     features = envs[i].features(act)
                     ns, r, done, _ = envs[i].step(act) 
-                    
-                    exit()
-                    LS.append((features,r,ns,done, available_acts, [envs[i].features(a) for a in available_acts]))
+                    LS.append((features,r,ns,done, [envs[i].features(a) for a in available_acts]))                
                     states[i] = ns
                     sizes[i] += 1
-                    if act != envs[i].dantzigAction():
-                        dantzig_trajectory[i] = False  
                     if done:
                         if r == 1:
                             success += 1
                         envs[i] = None
-            
+                    print("time elapsed :", time.time() - t)
             
             s = ns
         for i in range(len(sizes)):
             sizes[i] = sizes[i] if envs[i] is None else np.inf
+        """
+        with multiprocessing.Pool(4) as p:
+            LT = p.map(self.generateEpisode, [(deepcopy(self.env), steps) for _ in range(N)])
+            LS = []
+            [LS.extend(el) for el in LT]
+            #LS = [t for sublist in LS for l in sublist for t in l]
         print("Number of transitions : ", N*steps)
-        print("Number of successful trajectories : ", success)
-        print("Mean length of successful trajectories :", np.mean([s for s in sizes if s < np.inf]))
-        print("Mean var length of successful trajectories :", np.var([s for s in sizes if s < np.inf]))
+        print("Number of successful trajectories : ", sum([1 if x[3] else 0 for x in LS]))
+        #print("Mean length of successful trajectories :", np.mean([s for s in sizes if s < np.inf]))
+        #print("Mean var length of successful trajectories :", np.var([s for s in sizes if s < np.inf]))
         print("Feature size :", self.env.getFeatureSize(mode=self.mode))
         return LS
 
@@ -82,8 +103,15 @@ class FQI_Agent(object):
         self.env.reset()
         if self.LS is None:
             #self.mapact = {a:env.postprocess_action(a, mode=1) for a in range(self.env.getNumberOfActions())}
-            self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], x[2],  [x[1]], [x[4]]]).tolist(),LT)))
+            self.LS = np.asarray(list(map(lambda x : np.hstack([x[0], x[2],  [x[1]]]).tolist(),LT)))
             self.LSN = np.vstack(map(lambda x : np.vstack(x[-1]), LT))
+            previous_k = 0
+            self.intervals = []
+            for _,_,_,_,lf in LT:
+                len_lf = len(lf)
+                self.intervals.append((previous_k, previous_k+len_lf))
+                previous_k += len_lf
+               
         # On first iteration, output is the reward
         if i == 0:
             return self.LS[:,:self.env.getFeatureSize(mode=self.mode)], self.LS[:,2]
@@ -152,7 +180,7 @@ class FQI_Agent(object):
         return (inp, out)
 
     def train(self, I):
-        L = self.generateRandomTuples(120, 200)
+        L = self.generateRandomTuples(500, 100)
         print("FQI training")
         for i in range(I):
             print("Iteration ",i+1,"/",I)
@@ -163,16 +191,16 @@ class FQI_Agent(object):
         
 
     def test(self):
-        n_actions = env.getNumberOfActions()
         success_rate = 0
         K = 10
         N = 100
         regret_lst = []
         print("Test on ", K, " random basis, limit of ",N," steps : ")
         for _ in range(K):
-            initial_state = poly.cube_randomBasis(self.env.n//2)
+            self.env.reset()
+            env_2 = deepcopy(self.env)
             done = False
-            state = self.env.reset(initial_state)
+            #state = self.env.reset(initial_state)
             i = 0
 
             #Firstly compute the optimal path
@@ -183,19 +211,14 @@ class FQI_Agent(object):
             print("True optimal path is ",optimal_steps," steps !")
 
             self.RC.n_jobs = 1
-            state = self.env.reset(initial_state)
             done = False
             i = 0
             while not done and i < N:
-                max_a = -np.inf
-                argmax_a = None
-                for a in self.env.getAvailableActions():
-                    #inp = np.hstack([state, self.env.postprocess_action(a, mode=1)])
-                    pred = self.RC.predict(self.env.features(a))[0]
-                    if pred > max_a:
-                        max_a = pred
-                        argmax_a = a
-                state, _, done, _ = self.env.step(argmax_a)
+                available_acts = self.env.getAvailableActions()
+                lst_pred = [env_2.features(a, mode=self.mode) for a in available_acts]
+                values = self.RC.predict(lst_pred)
+                act = available_acts[np.argmax(values)]
+                state, _, done, _ = env_2.step(act)
                 i += 1
             if not done:
                 print("Optimal solution not found :(")
@@ -213,7 +236,7 @@ if __name__=="__main__":
     env = SimPolyhedra.cube(50)
     agt = FQI_Agent(env)
     print("Training process...")
-    agt.train(1)
+    agt.train(100)
     print("Training done. Performing test...")
     agt.test() 
     dump(agt.RC,"trees.dmp")

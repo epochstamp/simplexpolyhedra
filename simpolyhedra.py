@@ -186,10 +186,11 @@ class SimPolyhedra():
             self.A_neg[j,0] = (sa - sp)/2
 
     def getFeatureSize(self, mode=0):
+        s = self.staticFeatures.shape[0] 
         if mode == 0:
-            return 23
+            return s + 23
         elif mode == 1:
-            return 28
+            return s + 28
         else:
             raise NotImplementedError("Mode not recognized")
     
@@ -281,14 +282,22 @@ class SimPolyhedra():
         mask = abs(self.state[:,1+act]) > tol
         mask[0] = False
         cA = abs(self.state[0,1+act])/self.state[mask,1+act]
-        dynamicFeatures[15] = abs(np.min(cA)) if self.state[0,1+act] >= 0 else -1
-        dynamicFeatures[16] = sign(np.min(cA)) if self.state[0,1+act] >= 0 else 0
-        dynamicFeatures[17] = abs(np.max(cA)) if self.state[0,1+act] >= 0 else -1
-        dynamicFeatures[18] = sign(np.max(cA)) if self.state[0,1+act] >= 0 else 0
-        dynamicFeatures[19] = abs(np.min(cA)) if self.state[0,1+act] < 0 else -1
-        dynamicFeatures[20] = sign(np.min(cA)) if self.state[0,1+act] < 0 else 0
-        dynamicFeatures[21] = abs(np.max(cA)) if self.state[0,1+act] < 0 else -1
-        dynamicFeatures[22] = sign(np.max(cA)) if self.state[0,1+act] < 0 else 0
+        min_cA = np.min(cA)
+        max_cA = np.max(cA)
+        signmin_cA = np.sign(min_cA)
+        absmin_cA = np.abs(min_cA)
+        signmax_cA = np.sign(max_cA)
+        absmax_cA = np.abs(max_cA)
+        poscond = self.state[0,1+act] >= 0
+        negcond = self.state[0,1+act] < 0
+        dynamicFeatures[15] = absmin_cA if poscond else -1
+        dynamicFeatures[16] = signmin_cA if poscond else 0
+        dynamicFeatures[17] = absmax_cA if poscond else -1
+        dynamicFeatures[18] = signmax_cA if poscond else 0
+        dynamicFeatures[19] = absmin_cA if negcond else -1
+        dynamicFeatures[20] = signmin_cA if negcond else 0
+        dynamicFeatures[21] = absmax_cA if negcond else -1
+        dynamicFeatures[22] = signmax_cA if negcond else 0
     
         if mode == 1:
             # bounds/constraint features : test ratio
