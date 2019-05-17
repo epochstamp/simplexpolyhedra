@@ -22,6 +22,8 @@ def objective(n,obj):
         return np.random.random([1,n])-0.5
     elif obj == 'pos_random':
         return np.random.random([1,n])
+    elif obj == 'neg_random':
+        return -np.random.random([1,n])
     elif obj == 'unit':
         return np.ones([1,n])
     elif obj == 'neg_unit':

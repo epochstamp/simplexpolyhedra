@@ -1,12 +1,26 @@
 import sys
 import math
-import gym
+try:
+    import gym
+except:
+    pass
 import numpy as np
 from scipy import optimize
 import scipy
 import time
-import mpu.ml
+try:
+    import mpu.ml
+except:
+    pass
 import polyhedronutils as poly
+
+def sign(x,tol=1e-8):
+    if abs(x) < tol:
+        return 0
+    elif x > 0:
+        return 1
+    else:
+        return -1
 
 def feasibleBasis(A,b,method='SimPolyhedra'):
     m = A.shape[0]
@@ -25,6 +39,7 @@ def feasibleBasis(A,b,method='SimPolyhedra'):
         while not P.isOptimal():
             a = P.dantzigAction()
             P.step(a)
+            print(P.objective())
         
         return P.basis[:n]
         
@@ -51,6 +66,146 @@ class SimPolyhedra():
     """
     def gamma(self): return 0.95
 
+    def initFeatures(self,tol = 1e-8):
+        self.staticFeatures = np.zeros([27,self.n])
+        
+        c_pos = np.sum(abs(self.c[self.c > 0]))
+        c_neg = np.sum(abs(self.c[self.c < 0]))
+        
+        A_pos = np.zeros([self.m,1])
+        A_neg = np.zeros([self.m,1])
+        for j in range(self.m):
+            A_pos[j,0] = np.sum(self.A[j,self.A[j,:]>0])
+            A_neg[j,0] = -np.sum(self.A[j,self.A[j,:]<0])
+        
+        for i in range(self.n):
+            # cost function features
+            self.staticFeatures[0,i] = sign(self.c[0,i])
+            self.staticFeatures[1,i] = abs(self.c[0,i])/c_pos
+            self.staticFeatures[2,i] = abs(self.c[0,i])/c_neg
+            
+            # constraint coefficient features
+            ppA = self.A[self.A[:,i]>0,i]/A_pos
+            pnA = self.A[self.A[:,i]>0,i]/A_neg
+            npA = self.A[self.A[:,i]<0,i]/A_pos
+            nnA = self.A[self.A[:,i]<0,i]/A_neg
+            
+            self.staticFeatures[3,i] = np.min(ppA) if ppA.shape[1] > 0 else -1
+            self.staticFeatures[4,i] = np.max(ppA) if ppA.shape[1] > 0 else -1
+            self.staticFeatures[5,i] = np.max(pnA) if pnA.shape[1] > 0 else -1
+            self.staticFeatures[6,i] = np.max(pnA) if pnA.shape[1] > 0 else -1
+            self.staticFeatures[7,i] = -np.min(npA) if npA.shape[1] > 0 else -1
+            self.staticFeatures[8,i] = -np.max(npA) if npA.shape[1] > 0 else -1
+            self.staticFeatures[9,i] = -np.max(nnA) if nnA.shape[1] > 0 else -1
+            self.staticFeatures[10,i] = -np.max(nnA) if nnA.shape[1] > 0 else -1
+            
+            # bounds/constraint features
+            pbA = self.A[self.b[:,0]>0,i]/self.b[self.b[:,0]>0,0]
+            nbA = self.A[self.b[:,0]<0,i]/(-self.b[self.b[:,0]<0,0])
+            self.staticFeatures[11,i] = abs(np.min(pbA)) if pbA.shape[0] > 0 else -1
+            self.staticFeatures[12,i] = sign(np.min(pbA)) if pbA.shape[0] > 0 else 0
+            self.staticFeatures[13,i] = abs(np.max(pbA)) if pbA.shape[0] > 0 else -1
+            self.staticFeatures[14,i] = sign(np.max(pbA)) if pbA.shape[0] > 0 else 0
+            self.staticFeatures[15,i] = abs(np.min(nbA)) if nbA.shape[0] > 0 else -1
+            self.staticFeatures[16,i] = sign(np.min(nbA)) if nbA.shape[0] > 0 else 0
+            self.staticFeatures[17,i] = abs(np.max(nbA)) if nbA.shape[0] > 0 else -1
+            self.staticFeatures[18,i] = sign(np.max(nbA)) if nbA.shape[0] > 0 else 0
+            
+            # cost/constraint features
+            cA = self.c[0,i]/self.A[abs(self.A[:,i]) > tol,i]
+            self.staticFeatures[19,i] = abs(np.min(cA)) if self.c[0,i] >= 0 else -1
+            self.staticFeatures[20,i] = sign(np.min(cA)) if self.c[0,i] >= 0 else 0
+            self.staticFeatures[21,i] = abs(np.max(cA)) if self.c[0,i] >= 0 else -1
+            self.staticFeatures[22,i] = sign(np.max(cA)) if self.c[0,i] >= 0 else 0
+            self.staticFeatures[23,i] = abs(np.min(cA)) if self.c[0,i] < 0 else -1
+            self.staticFeatures[24,i] = sign(np.min(cA)) if self.c[0,i] < 0 else 0
+            self.staticFeatures[25,i] = abs(np.max(cA)) if self.c[0,i] < 0 else -1
+            self.staticFeatures[26,i] = sign(np.max(cA)) if self.c[0,i] < 0 else 0
+    
+    def preprocessFeatures(self):
+        sp = np.sum(self.state[0,1:])
+        sa = np.sum(abs(self.state[0,1:]))
+        self.c_pos = (sa + sp)/2
+        self.c_neg = (sa - sp)/2
+        
+        self.A_pos = np.zeros([self.m,1])
+        self.A_neg = np.zeros([self.m,1])
+        for j in range(self.m):
+            sp = np.sum(self.state[1+j,1:])
+            sa = np.sum(abs(self.state[1+j,1:]))
+            self.A_pos[j,0] = (sa + sp)/2
+            self.A_neg[j,0] = (sa - sp)/2
+    
+    def features(self, act, mode=0, tol=1e-8):
+        if mode == 0:
+            dynamicFeatures = np.zeros([23])
+        elif mode == 1:
+            dynamicFeatures = np.zeros([28])
+        else:
+            raise NotImplementedError("Mode not recognized")
+        
+        # cost function features
+        dynamicFeatures[0] = sign(self.state[0,1+act])
+        dynamicFeatures[1] = abs(self.state[0,1+act])/self.c_pos
+        dynamicFeatures[2] = abs(self.state[0,1+act])/self.c_neg
+        
+        # constraint coefficient features
+        mask = self.state[:,1+act]>tol
+        mask[0] = False
+        ppA = self.state[mask,1+act]/self.A_pos
+        pnA = self.state[mask,1+act]/self.A_neg
+        mask = self.state[:,1+act]<-tol
+        mask[0] = False
+        npA = self.state[mask,1+act]/self.A_pos
+        nnA = self.state[mask,1+act]/self.A_neg
+        
+        dynamicFeatures[3] = np.min(ppA) if ppA.shape[1] > 0 else -1
+        dynamicFeatures[4] = np.max(ppA) if ppA.shape[1] > 0 else -1
+        dynamicFeatures[5] = np.max(pnA) if pnA.shape[1] > 0 else -1
+        dynamicFeatures[6] = np.max(pnA) if pnA.shape[1] > 0 else -1
+        dynamicFeatures[7] = -np.min(npA) if npA.shape[1] > 0 else -1
+        dynamicFeatures[8] = -np.max(npA) if npA.shape[1] > 0 else -1
+        dynamicFeatures[9] = -np.max(nnA) if nnA.shape[1] > 0 else -1
+        dynamicFeatures[10] = -np.max(nnA) if nnA.shape[1] > 0 else -1
+        
+        # bounds/constraint features
+        mask = self.state[:,0]>tol
+        mask[0] = False
+        pbA = self.state[mask,1+act]/self.state[mask,0]
+        dynamicFeatures[11] = abs(np.min(pbA)) if pbA.shape[0] > 0 else -1
+        dynamicFeatures[12] = sign(np.min(pbA)) if pbA.shape[0] > 0 else 0
+        dynamicFeatures[13] = abs(np.max(pbA)) if pbA.shape[0] > 0 else -1
+        dynamicFeatures[14] = sign(np.max(pbA)) if pbA.shape[0] > 0 else 0
+        
+        # cost/constraint features
+        mask = abs(self.state[:,1+act]) > tol
+        mask[0] = False
+        cA = self.state[0,1+act]/self.state[mask,1+act]
+        dynamicFeatures[15] = abs(np.min(cA)) if self.state[0,1+act] >= 0 else -1
+        dynamicFeatures[16] = sign(np.min(cA)) if self.state[0,1+act] >= 0 else 0
+        dynamicFeatures[17] = abs(np.max(cA)) if self.state[0,1+act] >= 0 else -1
+        dynamicFeatures[18] = sign(np.max(cA)) if self.state[0,1+act] >= 0 else 0
+        dynamicFeatures[19] = abs(np.min(cA)) if self.state[0,1+act] < 0 else -1
+        dynamicFeatures[20] = sign(np.min(cA)) if self.state[0,1+act] < 0 else 0
+        dynamicFeatures[21] = abs(np.max(cA)) if self.state[0,1+act] < 0 else -1
+        dynamicFeatures[22] = sign(np.max(cA)) if self.state[0,1+act] < 0 else 0
+    
+        if mode == 1:
+            # bounds/constraint features : test ratio
+            mask = (self.state[:,1+act]>tol) & (self.state[:,0]>tol)
+            mask[0] = False
+            bA = self.state[mask,1+act]/self.state[mask,0]
+            mbA = np.min(bA)
+            dynamicFeatures[23] = mbA
+            dynamicFeatures[24] = np.max(bA)
+            
+            # additional cost measures : steepest edge, greatest improvement, least entered
+            dynamicFeatures[25] = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
+            dynamicFeatures[26] = self.entered[act]/self.steps
+            dynamicFeatures[27] = self.state[0,1+act]*mbA
+    
+        return np.concatenate([self.staticFeatures[:,act],dynamicFeatures])
+    
     def __init__(self, A, b, c, type = 'polyhedron'):
         """
         Instantiation of a Simplex-Polyhedra problem
@@ -73,6 +228,8 @@ class SimPolyhedra():
         self.b = b
         self.c = c
         
+        self.initFeatures()
+        
         self.type = type
 
     def getNumberOfActions(self): return self.n
@@ -88,6 +245,7 @@ class SimPolyhedra():
             - n (integer) - dimension of the cube
             - obj (str) - 'random' for a random objective
                         - 'pos_random' for a random positive objective
+                        - 'neg_random' for a random negative objective
                         - 'unit' for an unit objective (sum of coordinates)
                         - 'negunit' for the opposite unit objective (-sum of coordinates)
         """
@@ -107,6 +265,7 @@ class SimPolyhedra():
             - cond (float) - condition number of the spindle
             - obj (str) - 'random' for a random objective
                         - 'pos_random' for a random positive objective
+                        - 'neg_random' for a random negative objective
                         - 'unit' for an unit objective (sum of coordinates)
                         - 'neg_unit' for the opposite unit objective (-sum of coordinates)
         """
@@ -118,12 +277,10 @@ class SimPolyhedra():
         return SimPolyhedra(A,b,c,'spindle')
         
     def randomPolyhedron(n):
-        A = -np.random.random([2*n,n])
+        A = np.random.random([2*n,n])
         b = np.zeros([2*n,1])
         b[:,0] = np.sum(A,axis=1)/2.
-        A = np.vstack([A,np.eye(n)])
-        b = np.vstack([b,np.ones([n,1])*100])
-        c = poly.objective(n,'pos_random')
+        c = poly.objective(n,'neg_random')
             
         A,b,c = poly.standardForm(A,b,c)
         
@@ -153,10 +310,13 @@ class SimPolyhedra():
                 self.rowVar.append(i)
         
         self.entered = [0 for k in range(self.n)]
+        self.steps = 0
         
         # Creation of the state (containing the entire simplex "tableau" )
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
 
+        self.preprocessFeatures()
+        
         # Random steps to find a random basis
         if initBasis is None and randomSteps == 0:
             randomSteps = self.autoRandomSteps()
@@ -238,10 +398,23 @@ class SimPolyhedra():
         min_c = np.inf
         argmin_c = None
         for act in range(self.n):
-            c = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
-            if c < min_c:
-                min_c = c
-                argmin_c = act
+            if not self.basis[act]:
+                c = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
+                if c < min_c:
+                    min_c = c
+                    argmin_c = act
+        
+        return argmin_c
+        
+    def testAction(self):
+        min_c = np.inf
+        argmin_c = None
+        for act in range(self.n):
+            if not self.basis[act]:
+                c = self.state[0,1+act]/np.max(self.state[1:,1+act])
+                if c < min_c:
+                    min_c = c
+                    argmin_c = act
         
         return argmin_c
         
@@ -263,6 +436,20 @@ class SimPolyhedra():
                         argmin_e = act
                         tie = c
         return argmin_e
+        
+    def postprocess_action(self,a,mode=0):
+        if mode == 0:
+            return self.actionToOneHot(a)
+        elif mode == 1:
+            return self.actionToDistanceToRCost(a)
+
+        raise NotImplementedError("Mode not recognized")
+
+    def actionToOneHot(self,a):
+        return mpu.ml.indices2one_hot([a], nb_classes=self.n)[0]
+
+    def actionToDistanceToRCost(self,a):
+        return np.square(np.min(self.state[0,1:]) - self.state[0,a+1])
         
     def step(self, act, trueStep=True):
         """
@@ -292,6 +479,8 @@ class SimPolyhedra():
                     self.state[i,:] -= self.state[1+e,:]*self.state[i,1+act]/self.state[1+e,1+act]
             self.state[1+e,:] /= self.state[1+e,1+act]
             
+            self.preprocessFeatures()
+            
             # Update of informations on basic variables
             self.basis[self.rowVar[e]] = False
             self.basis[act] = True
@@ -299,6 +488,7 @@ class SimPolyhedra():
             
             if trueStep:
                 self.entered[act] += 1
+                self.steps += 1
             
             # Termination if optimal
             if self.isOptimal():
@@ -307,6 +497,9 @@ class SimPolyhedra():
                 
         return self.observe(), reward, done, {}
  
+    def resetHistory(self):
+        self.entered = [0 for k in range(self.n)]
+        
     def observe(self): 
         """
         Transform state to observation (matrix to vector here)
@@ -424,6 +617,31 @@ if __name__ == '__main__':
     print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
     print("")
 
+    """ Test rule """
+    P.reset(reference_basis)
+    steps = 0
+    acts = []
+    while not P.isOptimal():
+        print("Objective = " + str(P.objective()))
+        a = P.testAction()
+        P.step(a)
+        acts.append(a)
+        steps += 1
+    print("Objective = " + str(P.objective()))
+    print("")
+    
+    expected = sum(P.c[P.c<=0])
+    print("Expected objective: " + str(expected))
+    print("Objective: " + str(P.objective()))
+    print("")
+    
+    """ For a cube, we know the expected number of steps """
+    expected_steps = sum([P.basis[i] != reference_basis[i] for i in range(P.n)])//2
+    print("Expected number of steps : " + str(expected_steps))
+    print("Number of steps : " + str(steps))
+    print("History of actions + uniqueness: ", acts, len(set(acts)) == len(acts))
+    print("")
+    
     """ Least entered rule """
     P.reset(reference_basis)
     steps = 0
