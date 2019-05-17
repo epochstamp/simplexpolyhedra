@@ -39,7 +39,6 @@ def feasibleBasis(A,b,method='SimPolyhedra'):
         while not P.isOptimal():
             a = P.dantzigAction()
             P.step(a)
-            print(P.objective())
         
         return P.basis[:n]
         
