@@ -84,6 +84,7 @@ class SimPolyhedra():
             self.staticFeatures[1,i] = abs(self.c[0,i])/c_pos
             self.staticFeatures[2,i] = abs(self.c[0,i])/c_neg
             
+
             # constraint coefficient features
             ppA = self.A[self.A[:,i]>0,i]/A_pos
             pnA = self.A[self.A[:,i]>0,i]/A_neg
@@ -135,6 +136,14 @@ class SimPolyhedra():
             sa = np.sum(abs(self.state[1+j,1:]))
             self.A_pos[j,0] = (sa + sp)/2
             self.A_neg[j,0] = (sa - sp)/2
+
+    def getFeatureSize(self, mode=0):
+        if mode == 0:
+            return 23
+        elif mode == 1:
+            return 28
+        else:
+            raise NotImplementedError("Mode not recognized")
     
     def features(self, act, mode=0, tol=1e-8):
         if mode == 0:
