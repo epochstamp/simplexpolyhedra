@@ -418,7 +418,7 @@ class SimPolyhedra():
                 self.rowVar.append(i)
         
         self.entered = [0 for k in range(self.n)]
-        self.steps = 0
+        self.steps = 1
         
         # Creation of the state (containing the entire simplex "tableau" )
         self.state = np.vstack([np.hstack([z_r,c_r]),np.hstack([b_r,A_r])])
