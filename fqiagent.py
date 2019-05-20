@@ -8,7 +8,7 @@ from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor, HistGra
 from simpolyhedra import SimPolyhedra
 import polyhedronutils as poly
 from copy import deepcopy
-from joblib import dump
+from joblib import dump, load
 import multiprocessing
 
 """
@@ -22,7 +22,7 @@ class FQI_Agent(object):
 
     def __init__(self, env, d_prob=2.0, feature_mode=1):
         self.env = env
-        self.RC = ExtraTreesRegressor(max_features=0.75, n_estimators=1000, n_jobs=12)
+        self.RC = ExtraTreesRegressor(n_estimators=500, n_jobs=12)
         self.LS = None
         self.d_prob = d_prob
         self.cartesian_SA = None
@@ -192,11 +192,13 @@ class FQI_Agent(object):
             self.RC.fit(inp,out)
         
 
-    def test(self):
+    def test(self, policy_tree_file=None):
         success_rate = 0
         K = 10
         N = 150
         regret_lst = []
+        if policy_tree_file is not None:
+            self.RC = load(policy_tree_file)
         print("Test on ", K, " random basis, limit of ",N," steps : ")
         for _ in range(K):
             self.env.reset()
@@ -207,7 +209,8 @@ class FQI_Agent(object):
 
             #Firstly compute the optimal path
             while not done and i < N:
-                _, _, done, _ = self.env.step(self.env.dantzigAction())
+                act = self.env.dantzigAction()
+                _, _, done, _ = self.env.step(act)
                 i += 1
             optimal_steps = i
             print("True optimal path is ",optimal_steps," steps !")
@@ -217,9 +220,16 @@ class FQI_Agent(object):
             i = 0
             while not done and i < N:
                 available_acts = env_2.getAvailableActions()
-                lst_pred = [env_2.features(a, mode=self.mode) for a in available_acts]
+                lst_pred = np.vstack([env_2.features(a, mode=self.mode) for a in available_acts])
                 values = self.RC.predict(lst_pred)
                 act = available_acts[np.argmax(values)]
+                #print (np.max(values))
+                #print(act)
+                features = env_2.features(act, mode=self.mode) 
+                #print(features[27], features[28],features[29], features[-3])
+                time.sleep(1)
+               
+                #print(self.env.features(act, mode=self.mode))
                 _, _, done, _ = env_2.step(act)
                 i += 1
             if not done:

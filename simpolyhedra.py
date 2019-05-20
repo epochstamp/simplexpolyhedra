@@ -63,7 +63,7 @@ class SimPolyhedra():
     """
     Discount factor
     """
-    def gamma(self): return 0.95
+    def gamma(self): return 0.995
 
     def initFeatures(self,tol = 1e-8):
         self.staticFeatures = np.zeros([27,self.n])
@@ -283,9 +283,9 @@ class SimPolyhedra():
         cA = abs(self.state[0,1+act])/self.state[mask,1+act]
         min_cA = np.min(cA)
         max_cA = np.max(cA)
-        signmin_cA = np.sign(min_cA)
+        signmin_cA = sign(min_cA)
         absmin_cA = np.abs(min_cA)
-        signmax_cA = np.sign(max_cA)
+        signmax_cA = sign(max_cA)
         absmax_cA = np.abs(max_cA)
         poscond = self.state[0,1+act] >= 0
         negcond = self.state[0,1+act] < 0
@@ -594,10 +594,14 @@ class SimPolyhedra():
             self.basis[self.rowVar[e]] = False
             self.basis[act] = True
             self.rowVar[e] = act
+
+            
             
             if trueStep:
                 self.entered[act] += 1
                 self.steps += 1
+
+            reward = 0#0.01 * -self.entered[act]/self.steps - 0.01 * sign(self.state[0,1+act])
             
             # Termination if optimal
             if self.isOptimal():
