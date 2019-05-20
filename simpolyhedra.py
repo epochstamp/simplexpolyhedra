@@ -189,7 +189,7 @@ class SimPolyhedra():
         if mode == 0:
             return s + 23
         elif mode == 1:
-            return s + 28
+            return s + 29
         else:
             raise NotImplementedError("Mode not recognized")
     
@@ -197,7 +197,7 @@ class SimPolyhedra():
         if mode == 0:
             dynamicFeatures = np.zeros([23])
         elif mode == 1:
-            dynamicFeatures = np.zeros([28])
+            dynamicFeatures = np.zeros([29])
         else:
             raise NotImplementedError("Mode not recognized")
         
@@ -311,6 +311,7 @@ class SimPolyhedra():
             dynamicFeatures[25] = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
             dynamicFeatures[26] = self.entered[act]/self.steps
             dynamicFeatures[27] = self.state[0,1+act]*mbA
+            dynamicFeatures[28] = np.square(self.state[0,1+act] - np.min(self.state[0,1:]))
     
         return np.concatenate([self.staticFeatures[:,act],dynamicFeatures])
     

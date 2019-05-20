@@ -17,11 +17,13 @@ if __name__=="__main__":
     env = SimPolyhedra.cube(50)
     env.reset(poly.cube_randomBasis(env.n//2))
     RC = load("trees.dmp")
-    tableau_importance = np.reshape(RC.feature_importances_[:-env.getNumberOfActions()], env.state.shape)
+    print(RC.feature_importances_)
+    """
+    tableau_importance = np.reshape(RC.feature_importances_[:-env.sizeOfActionVector(mode=1)], env.state.shape)
     print("Objective importance", tableau_importance[0,0])
-    sum_action_importance = np.sum(RC.feature_importances_[-env.getNumberOfActions():])
-    mean_action_importance = np.mean(RC.feature_importances_[-env.getNumberOfActions():])
-    var_action_importance = np.var(RC.feature_importances_[-env.getNumberOfActions():])
+    sum_action_importance = np.sum(RC.feature_importances_[-env.sizeOfActionVector(mode=1):])
+    mean_action_importance = np.mean(RC.feature_importances_[-env.sizeOfActionVector(mode=1):])
+    var_action_importance = np.var(RC.feature_importances_[-env.sizeOfActionVector(mode=1):])
     print("Action importance moments (sum, mean,var) :", sum_action_importance, mean_action_importance, var_action_importance)
     sum_rcost_importance = np.sum(tableau_importance[0,1:])
     mean_rcost_importance = np.mean(tableau_importance[0,1:])
@@ -35,3 +37,4 @@ if __name__=="__main__":
     mean_amat_importance = np.mean(tableau_importance[1:,1:])
     var_amat_importance = np.var(tableau_importance[1:,1:])
     print("A matrix importance moments (sum,mean,var)", sum_amat_importance,mean_amat_importance, var_amat_importance)
+    """
