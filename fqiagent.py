@@ -37,7 +37,8 @@ class FQI_Agent(object):
     def __init__(self, env, args):
         kwargs = vars(args)
         self.env = env
-        self.RC = kwargs["estimator"][0]#ExtraTreesRegressor(max_features=kwargs["max_features"],n_estimators=kwargs["n_estimators"], n_jobs=kwargs["max_njobs"])
+        self.RC = kwargs["estimator"][0]
+        
         self.LS = None
         self.d_prob = kwargs["bias_exploration_coeff"]
         self.cartesian_SA = None
@@ -50,6 +51,11 @@ class FQI_Agent(object):
         self.lst_parallel_rpolicy = None
 
         self.envs_test = self.args.envs_tests
+
+        try:
+            self.RC.n_jobs = min(self.RC.n_jobs, self.args.max_njobs)
+        except:
+            self.RC.n_jobs = 1
         
         try:
             os.makedirs(self.output_folder)    
