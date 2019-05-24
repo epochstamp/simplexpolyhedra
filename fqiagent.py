@@ -5,8 +5,7 @@ import scipy
 import time
 import random
 import os
-from sklearn.experimental import enable_hist_gradient_boosting
-from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
+from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor, GradientBoostingRegressor
 from simpolyhedra import SimPolyhedra
 import polyhedronutils as poly
 from copy import deepcopy
@@ -366,6 +365,7 @@ def geometrical(astring):
 estimators = dict()
 estimators["extratrees"] = RandomForestRegressor
 estimators["randomforests"] = ExtraTreesRegressor
+estimators["gdboosting"] = GradientBoostingRegressor
 
 def check_int(s):
     s = str(s)
@@ -439,7 +439,7 @@ if __name__=="__main__":
     parser.add_argument("--output-folder","-o",help="Output result folder", default="auto")
     parser.add_argument("--feature-mode","-f",help="Featurization mode (see environment specs)", type=pos_int, default=0)
     parser.add_argument("--envs-tests","-F",help="Configuration file for environment testing", type=configfile, default="unitcube.cfg")
-    #parser.add_argument("--q-iterations","-q",help="Number of iterations of FQI", type=strictpos_int, default=20)
+    parser.add_argument("--q-iterations","-q",help="Number of iterations of FQI", type=strictpos_int, default=20)
     
     
     args = parser.parse_args()
@@ -455,5 +455,5 @@ if __name__=="__main__":
     except SimulationExistsError as e:
         print(e)
         exit(-1)
-    agt.loop_train_test(100)
+    agt.loop_train_test(self.q_iterations)
     
