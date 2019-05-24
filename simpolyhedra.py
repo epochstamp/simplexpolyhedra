@@ -189,6 +189,8 @@ class SimPolyhedra():
         if mode == 0:
             return s + 23
         elif mode == 1:
+            return s + 28
+        elif mode == 2:
             return s + 29
         else:
             raise NotImplementedError("Mode not recognized")
@@ -197,6 +199,8 @@ class SimPolyhedra():
         if mode == 0:
             dynamicFeatures = np.zeros([23])
         elif mode == 1:
+            dynamicFeatures = np.zeros([28]) 
+        elif mode == 2:
             dynamicFeatures = np.zeros([29])
         else:
             raise NotImplementedError("Mode not recognized")
@@ -311,7 +315,8 @@ class SimPolyhedra():
             dynamicFeatures[25] = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
             dynamicFeatures[26] = self.entered[act]/self.steps
             dynamicFeatures[27] = self.state[0,1+act]*mbA
-            dynamicFeatures[28] = np.square(self.state[0,1+act] - np.min(self.state[0,1:]))
+        if mode == 2:
+            dynamicFeatures[28] = np.square(self.state[0,1+act]-np.min(self.state[0,1:]))
     
         return np.concatenate([self.staticFeatures[:,act],dynamicFeatures])
     
@@ -342,9 +347,6 @@ class SimPolyhedra():
         self.type = type
 
     def getNumberOfActions(self): return self.n
-
-    def sizeOfActionVector(self, mode=0):
-        return self.n if mode == 0 else 1
 
     def cube(n,obj='random'):
         """
@@ -436,6 +438,8 @@ class SimPolyhedra():
         
         return self.observe()
 
+    def getType(self) : return self.type
+
     def feasibleBasis(self):
         if self.type == 'polyhedron':
             return feasibleBasis(self.A,self.b)
@@ -466,6 +470,13 @@ class SimPolyhedra():
     
     def dantzigAction(self):
         return np.argmin(self.state[0,1:])
+
+    def reflexAction(self):
+        if self.type == "unitcube":
+            return self.dantzigAction()
+        elif self.type == "spindle":
+            return self.steepestEdgeAction()
+        return self.dantzigAction()
 
     def postprocess_action(self,a,mode=0):
         if mode == 0:
