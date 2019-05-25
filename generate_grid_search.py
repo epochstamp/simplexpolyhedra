@@ -16,8 +16,18 @@ srun python fqiagent.py --n-episodes %nepisodes --horizon-time %horizontime --ma
 from itertools import product
 import numpy as np
 import os
+import md5
+import hashlib
+
 def my_product(inp):
     return (dict(zip(inp.keys(), values)) for values in product(*inp.values()))
+
+
+
+def computeMD5hash(my_string):
+    m = hashlib.md5()
+    m.update(my_string.encode('utf-8'))
+    return m.hexdigest()
 
 commands = dict()
 commands["nepisodes"] = [100,500,1000]
@@ -57,7 +67,7 @@ if __name__=="__main__":
            pattern_transform = pattern_transform.replace("%"+k, str(v))
            jobname += "k="+str(k)+"_v="+str(v)+"_"
        jobname = jobname[:-1]
-       pattern_transform = pattern_transform.replace("%ijob", jobname)
+       pattern_transform = pattern_transform.replace("%ijob", computeMD5hash(jobname))
        file_to_finalscript = open("slurm_jobs/"+jobname+".sh", "w+")
        file_to_finalscript.write(pattern_transform)
        file_to_finalscript.close()       
