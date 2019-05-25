@@ -1,6 +1,6 @@
 #!/bin/bash
 # Submission script for Vega
-#SBATCH --job-name=simpolyhedra_fqiagent_%ijob
+#SBATCH --job-name=shfq_%ijob
 #SBATCH --time=12:00:00 # hh:mm:ss
 #SBATCH --cpus-per-task=12
 #
