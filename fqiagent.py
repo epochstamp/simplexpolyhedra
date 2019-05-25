@@ -242,7 +242,11 @@ class FQI_Agent(object):
             
         else:
             beg = 0
+        
+        start_time = time.time()
         for i in range(beg, I):
+            if (time.time() - start_time)/3600 <= self.args.maximum_time_exec_hours - 0.5:
+                exit(-1) 
             inp, out = agt.toLearningSet(L, i)
             self.RC.fit(inp,out)
             self.make_backup()
@@ -447,7 +451,7 @@ if __name__=="__main__":
     parser.add_argument("--feature-mode","-f",help="Featurization mode (see environment specs)", type=pos_int, default=0)
     parser.add_argument("--envs-tests","-F",help="Configuration file for environment testing", type=configfile, default="unitcube.cfg")
     parser.add_argument("--q-iterations","-q",help="Number of iterations of FQI", type=strictpos_int, default=20)
-    
+    parser.add_argument("--maximum-time-exec-hours","-l",help="Execution time limit", type=strictpos_int, default=24)
     
     args = parser.parse_args()
     if (args.seed != -1):
