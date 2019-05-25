@@ -16,7 +16,6 @@ srun python fqiagent.py --n-episodes %nepisodes --horizon-time %horizontime --ma
 from itertools import product
 import numpy as np
 import os
-import md5
 import hashlib
 
 def my_product(inp):
