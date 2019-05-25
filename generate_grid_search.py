@@ -39,7 +39,7 @@ commands["estimator"] = ["extratrees#n_estimators=100#n_jobs=4",
 commands["featuremode"] = [0,1,2]
 commands["biasexplorationcoeff"] = [1.0,2.0,4.0]
 np.random.seed(200)
-commands["seeds"] = list(set(np.random.choice(10000,30,replace=False)))
+commands["seed"] = list(set(np.random.choice(10000,30,replace=False)))
 
 
 if __name__=="__main__":
@@ -51,13 +51,14 @@ if __name__=="__main__":
        pass 
    for combination in my_product(commands):
        
-       pattern_transform = patternslurm.replace("%ijob", str(i))
+       pattern_transform  = str(patternslurm)
        jobname = ""
        for k,v in combination.items():
            pattern_transform = pattern_transform.replace("%"+k, str(v))
            jobname += "k="+str(k)+"_v="+str(v)+"_"
        jobname = jobname[:-1]
-       file_to_finalscript = open("slurm_jobs/simpolyhedra_"+jobname+".sh", "w+")
+       pattern_transform = pattern_transform.replace("%ijob", jobname)
+       file_to_finalscript = open("slurm_jobs/"+jobname+".sh", "w+")
        file_to_finalscript.write(pattern_transform)
        file_to_finalscript.close()       
        i += 1
