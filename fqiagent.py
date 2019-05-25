@@ -370,7 +370,7 @@ def geometrical(astring):
 
 estimators = dict()
 estimators["extratrees"] = RandomForestRegressor
-estimators["randomforests"] = ExtraTreesRegressor
+estimators["randomforest"] = ExtraTreesRegressor
 estimators["gdboosting"] = GradientBoostingRegressor
 
 def check_int(s):
