@@ -193,7 +193,7 @@ class FQI_Agent(object):
                 for f in filelist:
                     os.remove(f)
                 self.locked.add(self.output_folder+"/*.dmp*")
-        dump({"estimator":self.RC, "iter":i, "tested":tested},self.output_folder+"/checkpoints/checkpoint_"+("untested" if not tested else "tested")+".dmp", compress=4)
+        dump({"estimator":self.RC, "iter":i, "tested":tested,"random_state":np.random.get_state()},self.output_folder+"/checkpoints/checkpoint_"+("untested" if not tested else "tested")+".dmp", compress=4)
 
     def load_checkpoint(self, try_backup = True):
         if (self.overwrite_mode == "w" and self.output_folder+"/*.loaddmp" not in self.locked): 
@@ -231,7 +231,8 @@ class FQI_Agent(object):
     def loop_train_test(self, I):
         L = self.generateRandomTuples(self.args.n_episodes, self.args.horizon_time)
         data = self.load_checkpoint()
-        if data is not None: 
+        if data is not None:
+            numpy.random.set_state(data["random_state"]) 
             beg = data["iter"]
             if beg > I:
                 raise IterIndexSupToMaxIter("Set your number of iterations lower than the maximum number (or raise the latter)")
@@ -461,5 +462,5 @@ if __name__=="__main__":
     except SimulationExistsError as e:
         print(e)
         exit(-1)
-    agt.loop_train_test(self.q_iterations)
+    agt.loop_train_test(args.q_iterations)
     
