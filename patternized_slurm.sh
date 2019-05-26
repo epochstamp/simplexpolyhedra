@@ -8,4 +8,4 @@
 #SBATCH --mem-per-cpu=4096 # 4GB
 
 
-srun python fqiagent.py --n-episodes %nepisodes --horizon-time %horizontime --max-njobs 12 --estimator %estimator --overwrite-mode a --geotype unitcube --vertices 50 --feature-mode %featuremode --bias-exploration-coeff %biasexplorationcoeff --seed %seed --envs-tests unitcube.cfg --n-episodes-test 40 --maximum-time-exec-hours 6 
+srun source activate myenv && python fqiagent.py --n-episodes %nepisodes --horizon-time %horizontime --max-njobs 12 --estimator %estimator --overwrite-mode a --geotype unitcube --vertices 50 --feature-mode %featuremode --bias-exploration-coeff %biasexplorationcoeff --seed %seed --envs-tests unitcube.cfg --n-episodes-test 40 --maximum-time-exec-hours 6 --q-iterations 100
