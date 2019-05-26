@@ -205,10 +205,12 @@ class SimPolyhedra():
         else:
             raise NotImplementedError("Mode not recognized")
         
+        reduced_cost = self.state[0,1+act]
+        abs_reduced_cost = abs(reduced_cost)
         # cost function features
-        dynamicFeatures[0] = sign(self.state[0,1+act])
-        dynamicFeatures[1] = abs(self.state[0,1+act])/self.c_pos if self.c_pos > 0 else -1
-        dynamicFeatures[2] = abs(self.state[0,1+act])/self.c_neg if self.c_neg > 0 else -1
+        dynamicFeatures[0] = sign(reduced_cost)
+        dynamicFeatures[1] = abs_reduced_cost/self.c_pos if self.c_pos > 0 else -1
+        dynamicFeatures[2] = abs_reduced_cost/self.c_neg if self.c_neg > 0 else -1
         
         # constraint coefficient features
         mppA = np.inf
@@ -220,28 +222,29 @@ class SimPolyhedra():
         mnnA = np.inf
         MnnA = -np.inf
         for j in range(self.m):
-            if self.state[1+j,1+act] > tol :
+            v_per_line = self.state[1+j,1+act]
+            if v_per_line > tol :
                 if self.A_pos[j,0] > tol:
-                    ppA = self.state[1+j,1+act]/self.A_pos[j,0]
+                    ppA = v_per_line/self.A_pos[j,0]
                     if ppA > MppA:
                         MppA = ppA
                     if ppA < mppA:
                         mppA = ppA
                 elif self.A_neg[j,0] < -tol:
-                    pnA = self.state[1+j,1+act]/self.A_neg[j,0]
+                    pnA = v_per_line/self.A_neg[j,0]
                     if pnA > MpnA:
                         MpnA = pnA
                     if pnA < mpnA:
                         mpnA = pnA
-            elif self.state[1+j,1+act] < -tol:
+            elif v_per_line < -tol:
                 if self.A_pos[j,0] > tol:
-                    npA = -self.state[1+j,1+act]/self.A_pos[j,0]
+                    npA = -v_per_line/self.A_pos[j,0]
                     if npA > MnpA:
                         MnpA = npA
                     if npA < mnpA:
                         mnpA = npA
                 elif self.A_neg[j,0] < -tol:
-                    nnA = -self.state[1+j,1+act]/self.A_neg[j,0]
+                    nnA = -v_per_line/self.A_neg[j,0]
                     if nnA > MnnA:
                         MnnA = nnA
                     if nnA < mnnA:
@@ -262,37 +265,47 @@ class SimPolyhedra():
         mnbA = np.inf
         MnbA = -np.inf
         for j in range(self.m):
+            v_per_line = self.state[1+j,1+act]
             if self.state[j,0] > tol:
-                pbA = self.state[1+j,1+act]/self.state[j,0]
+                pbA = v_per_line/self.state[j,0]
                 if pbA > MpbA:
                     MpbA = pbA
                 if pbA < mpbA:
                     mpbA = pbA
             elif self.state[j,0] < -tol:
-                nbA = self.state[1+j,1+act]/(-self.state[j,0])
+                nbA = v_per_line/(-self.state[j,0])
                 if nbA > MnbA:
                     MnbA = nbA
                 if nbA < mnbA:
                     mnbA = nbA
-                    
-        dynamicFeatures[11] = abs(mpbA) if mpbA != np.inf else -1
-        dynamicFeatures[12] = sign(mpbA) if mpbA != np.inf else 0
-        dynamicFeatures[13] = abs(MpbA) if MpbA != -np.inf else -1
-        dynamicFeatures[14] = sign(MpbA) if MpbA != -np.inf else 0
+        abs_mpbA = abs(mpbA)
+        sign_mpbA = sign(mpbA)
+        abs_MpbA = abs(MpbA)
+        sign_MpbA = sign(MpbA) 
+
+        
+        
+        
+                 
+  
+        dynamicFeatures[11] = abs_mpbA if mpbA != np.inf else -1
+        dynamicFeatures[12] = sign_mpbA if mpbA != np.inf else 0
+        dynamicFeatures[13] = abs_mpbA if MpbA != -np.inf else -1
+        dynamicFeatures[14] = sign_mpbA if MpbA != -np.inf else 0
             
         # cost/constraint features
-        assert((abs(self.state[:,1+act]) > tol).any())
+        # assert((abs(self.state[:,1+act]) > tol).any())
         mask = abs(self.state[:,1+act]) > tol
         mask[0] = False
-        cA = abs(self.state[0,1+act])/self.state[mask,1+act]
+        cA = abs(reduced_cost)/self.state[mask,1+act]
         min_cA = np.min(cA)
         max_cA = np.max(cA)
         signmin_cA = sign(min_cA)
         absmin_cA = np.abs(min_cA)
         signmax_cA = sign(max_cA)
         absmax_cA = np.abs(max_cA)
-        poscond = self.state[0,1+act] >= 0
-        negcond = self.state[0,1+act] < 0
+        poscond = reduced_cost >= 0
+        negcond = reduced_cost < 0
         dynamicFeatures[15] = absmin_cA if poscond else -1
         dynamicFeatures[16] = signmin_cA if poscond else 0
         dynamicFeatures[17] = absmax_cA if poscond else -1
@@ -312,11 +325,11 @@ class SimPolyhedra():
             dynamicFeatures[24] = np.max(bA)
             
             # additional cost measures : steepest edge, greatest improvement, least entered
-            dynamicFeatures[25] = self.state[0,1+act]/np.linalg.norm(self.state[1:,1+act])
+            dynamicFeatures[25] = reduced_cost/np.linalg.norm(self.state[1:,1+act])
             dynamicFeatures[26] = self.entered[act]/self.steps
-            dynamicFeatures[27] = self.state[0,1+act]*mbA
+            dynamicFeatures[27] = reduced_cost*mbA
         if mode == 2:
-            dynamicFeatures[28] = np.square(self.state[0,1+act]-np.min(self.state[0,1:]))
+            dynamicFeatures[28] = np.square(reduced_cost-np.min(self.state[0,1:]))
     
         return np.concatenate([self.staticFeatures[:,act],dynamicFeatures])
     
