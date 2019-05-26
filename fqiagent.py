@@ -245,7 +245,9 @@ class FQI_Agent(object):
         
         start_time = time.time()
         for i in range(beg, I):
-            if (time.time() - start_time)/3600 <= self.args.maximum_time_exec_hours - 0.5:
+            t_elapsed = (time.time() - start_time)/3600 
+            if (t_elapsed >= self.args.maximum_time_exec_hours - 0.5):
+                print("Simulation interrupted after being executed for " + str(t_elapsed) + " hours.")
                 exit(-1) 
             inp, out = agt.toLearningSet(L, i)
             self.RC.fit(inp,out)
