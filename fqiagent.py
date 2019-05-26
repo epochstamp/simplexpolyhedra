@@ -113,7 +113,7 @@ class FQI_Agent(object):
             with multiprocessing.Pool(self.args.max_njobs) as p:
                 LS = p.map(self.generateEpisode, [(deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "") for _ in range(N)])
         else:
-            LS = [self.generateEpisode(deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "") for _ in range(N)]
+            LS = [self.generateEpisode((deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "")) for _ in range(N)]
         dump(LS, self.output_folder+"/learning_set.dmp", compress=9)
 
         if not os.path.isfile(self.output_folder+"/training_stats.csv") or (self.overwrite_mode == "w" and self.output_folder+"/training_stats.csv" not in self.locked):
