@@ -111,7 +111,7 @@ class FQI_Agent(object):
 
         with multiprocessing.Pool(self.args.max_njobs) as p:
             LS = p.map(self.generateEpisode, [(deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "") for _ in range(N)])
-        dump(LS, self.output_folder+"/learning_set.dmp", compress=4)
+        dump(LS, self.output_folder+"/learning_set.dmp", compress=9)
 
         if not os.path.isfile(self.output_folder+"/training_stats.csv") or (self.overwrite_mode == "w" and self.output_folder+"/training_stats.csv" not in self.locked):
             f = open(self.output_folder+"/training_stats.csv", "w+")
@@ -193,7 +193,7 @@ class FQI_Agent(object):
                 for f in filelist:
                     os.remove(f)
                 self.locked.add(self.output_folder+"/*.dmp*")
-        dump({"estimator":self.RC, "iter":i, "tested":tested,"random_state":np.random.get_state()},self.output_folder+"/checkpoints/checkpoint_"+("untested" if not tested else "tested")+".dmp", compress=4)
+        dump({"estimator":self.RC, "iter":i, "tested":tested,"random_state":np.random.get_state()},self.output_folder+"/checkpoints/checkpoint_"+("untested" if not tested else "tested")+".dmp", compress=9)
 
     def load_checkpoint(self, try_backup = True):
         if (self.overwrite_mode == "w" and self.output_folder+"/*.loaddmp" not in self.locked): 
