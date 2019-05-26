@@ -305,7 +305,7 @@ class FQI_Agent(object):
 
     def test(self):
         old_njobs = self.RC.n_jobs
-        self.RC.n_jobs = 1
+        self.RC.n_jobs = 2
         #Initialize test file if it does not exists
         d_stats = {}
 
