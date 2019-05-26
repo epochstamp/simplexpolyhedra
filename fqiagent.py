@@ -196,7 +196,7 @@ class FQI_Agent(object):
                 for f in filelist:
                     os.remove(f)
                 self.locked.add(self.output_folder+"/*.dmp*")
-        dump({"estimator":self.RC, "iter":i, "tested":tested,"random_state":np.random.get_state()},self.output_folder+"/checkpoints/checkpoint_"+("untested" if not tested else "tested")+".dmp", compress=9)
+        dump({"estimator":self.RC, "iter":i, "tested":tested,"random_state":np.random.get_state()},self.output_folder+"/checkpoints/checkpoint.dmp", compress=9)
 
     def load_checkpoint(self, try_backup = True):
         if (self.overwrite_mode == "w" and self.output_folder+"/*.loaddmp" not in self.locked): 
@@ -207,29 +207,22 @@ class FQI_Agent(object):
         L = None
         
         try:
-            L = load(self.output_folder+"/checkpoints/checkpoint_tested.dmp")
+            L = load(self.output_folder+"/checkpoints/checkpoint.dmp")
         except:
-            self.write_log_error("Unable to load the tested version. Load (try to) the untested one...\n")
-            try:
-                L = load(self.output_folder+"/checkpoints/checkpoint_tested.dmp")
-            except:
-                self.write_log_error("Unable to even load the untested version.\n")
+            self.write_log_error("Unable to load the current version. Try backup...\n")
+
         self.write_log_error("\n\n\n******************************************\n\n\n")
 
         #Try to load backup if not successful above
         if L is None and try_backup:
             if os.path.isfile(self.output_folder+"/checkpoints/checkpoint.dmp.bak"):
                 copyfile(self.output_folder+"/checkpoints/checkpoint.dmp.bak", self.output_folder+"/checkpoints/checkpoint.dmp")
-            if os.path.isfile(self.output_folder+"/checkpoints/checkpoint_tested.dmp.bak"):
-                copyfile(self.output_folder+"/checkpoints/checkpoint_tested.dmp.bak", self.output_folder+"/checkpoints/checkpoint_tested.dmp")
             L = self.load_checkpoint(try_backup=False)
         return L
 
     def make_backup(self):
         if os.path.isfile(self.output_folder+"/checkpoints/checkpoint.dmp"):
-            copyfile(self.output_folder+"/checkpoints/checkpoint.dmp", self.output_folder+"/checkpoints/checkpoint.dmp.bak")
-        if os.path.isfile(self.output_folder+"/checkpoints/checkpoint_tested.dmp"):
-            copyfile(self.output_folder+"/checkpoints/checkpoint_tested.dmp", self.output_folder+"/checkpoints/checkpoint_tested.dmp.bak")   
+            copyfile(self.output_folder+"/checkpoints/checkpoint.dmp", self.output_folder+"/checkpoints/checkpoint.dmp.bak")  
 
     def loop_train_test(self, I):
         L = self.generateRandomTuples(self.args.n_episodes, self.args.horizon_time)
