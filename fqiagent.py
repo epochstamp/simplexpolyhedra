@@ -465,6 +465,6 @@ if __name__=="__main__":
         agt = FQI_Agent(env, args)
     except SimulationExistsError as e:
         print(e)
-        exit(-1)
+        exit(-1
     agt.loop_train_test(args.q_iterations)
     
