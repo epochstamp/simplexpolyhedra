@@ -109,8 +109,11 @@ class FQI_Agent(object):
         if os.path.isfile(self.output_folder+"/learning_set.dmp") and self.overwrite_mode == "a":
             return load(self.output_folder+"/learning_set.dmp")
 
-        with multiprocessing.Pool(self.args.max_njobs) as p:
-            LS = p.map(self.generateEpisode, [(deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "") for _ in range(N)])
+        if (self.args.max_njobs > 1): 
+            with multiprocessing.Pool(self.args.max_njobs) as p:
+                LS = p.map(self.generateEpisode, [(deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "") for _ in range(N)])
+        else:
+            LS = [self.generateEpisode(deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "") for _ in range(N)]
         dump(LS, self.output_folder+"/learning_set.dmp", compress=9)
 
         if not os.path.isfile(self.output_folder+"/training_stats.csv") or (self.overwrite_mode == "w" and self.output_folder+"/training_stats.csv" not in self.locked):
@@ -317,16 +320,20 @@ class FQI_Agent(object):
                 f.close()
                 self.locked.add(self.output_folder+"/"+keyword+"_stats.csv")
             d_stats[keyword] = open(self.output_folder+"/"+keyword+"_stats.csv", "a+")
-        with multiprocessing.Pool(self.args.max_njobs) as p:
-            if self.lst_parallel_rpolicy is None:
-                self.lst_parallel_rpolicy = []
-                self.lst_parallel_apolicy = []
-                for k,e in self.envs_test.items():
-                    self.lst_parallel_rpolicy.extend([(deepcopy(e), e.maxSteps, self._reflexPolicy, 1, False, (k,"rpolicy")) for _ in range(self.args.n_episodes_test)])
+        if self.lst_parallel_rpolicy is None:
+            self.lst_parallel_rpolicy = []
+            self.lst_parallel_apolicy = []
+            for k,e in self.envs_test.items():
+                self.lst_parallel_rpolicy.extend([(deepcopy(e), e.maxSteps, self._reflexPolicy, 1, False, (k,"rpolicy")) for _ in range(self.args.n_episodes_test)])
             [x[0].reset() for x in self.lst_parallel_rpolicy]
             self.lst_parallel_apolicy = [(deepcopy(x[0]), x[1], self._agentPolicy, x[3], x[4], (x[5][0],"apolicy")) for x in self.lst_parallel_rpolicy]
-            LT = p.map(self.generateEpisode, self.lst_parallel_rpolicy + self.lst_parallel_apolicy)
-            self._writeStatistics(LT, d_stats)
+
+        if self.args.max_njobs > 1:
+            with multiprocessing.Pool(self.args.max_njobs) as p:
+                LT = p.map(self.generateEpisode, self.lst_parallel_rpolicy + self.lst_parallel_apolicy)
+        else:
+            LT = [self.generateEpisode(x) for x in self.lst_parallel_rpolicy + self.lst_parallel_apolicy]
+        self._writeStatistics(LT, d_stats)
 
         #Write feature importance
         if not os.path.isfile(self.output_folder+"/feature_importances.csv") or (self.overwrite_mode == "w" and self.output_folder+"/feature_importances.csv" not in self.locked):
