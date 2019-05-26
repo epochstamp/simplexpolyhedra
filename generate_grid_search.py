@@ -17,6 +17,7 @@ from itertools import product
 import numpy as np
 import os
 import hashlib
+import multiprocessing
 
 def my_product(inp):
     return (dict(zip(inp.keys(), values)) for values in product(*inp.values()))
@@ -50,6 +51,20 @@ commands["biasexplorationcoeff"] = [1.0,2.0,4.0]
 np.random.seed(200)
 commands["seed"] = list(set(np.random.choice(10000,30,replace=False)))
 
+def f(x):
+   pattern, combination = x
+   pattern_transform  = str(pattern)
+   jobname = ""
+   for k,v in combination.items():
+       pattern_transform = pattern_transform.replace("%"+k, str(v))
+       jobname += "k="+str(k)+"_v="+str(v)+"_"
+   jobname = jobname[:-1]
+   pattern_transform = pattern_transform.replace("%ijob", computeMD5hash(jobname))
+   file_to_finalscript = open("slurm_jobs/"+jobname+".sh", "w+")
+   file_to_finalscript.write(pattern_transform)
+   file_to_finalscript.close()
+
+   
 
 if __name__=="__main__":
    patternslurm = open("patternized_slurm.sh").read()
@@ -58,6 +73,10 @@ if __name__=="__main__":
        os.makedirs("slurm_jobs")
    except Exception as e:
        pass 
+   with multiprocessing.Pool(12) as p:
+       p.map(f, [(str(patternslurm),c) for c in my_product(commands)])   
+
+   """
    for combination in my_product(commands):
        
        pattern_transform  = str(patternslurm)
@@ -69,7 +88,7 @@ if __name__=="__main__":
        pattern_transform = pattern_transform.replace("%ijob", computeMD5hash(jobname))
        file_to_finalscript = open("slurm_jobs/"+jobname+".sh", "w+")
        file_to_finalscript.write(pattern_transform)
-       file_to_finalscript.close()       
-       i += 1
+       file_to_finalscript.close()  
+    """     
        
     
