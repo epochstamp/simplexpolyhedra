@@ -9,8 +9,9 @@ for dir in slurm_jobs/*; do
   job_not_launched=0
   if [ -z "$grep_result" ]; then
     echo "Job not launched yet"
+    sbatch $dir
   else
     echo "Job launched"
   fi
-  #sbatch $dir
+  
 done
