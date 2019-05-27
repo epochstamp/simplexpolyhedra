@@ -4,7 +4,6 @@ for dir in slurm_jobs/*; do
   f=`basename $dir`
   fname="${f%.*}"
   jobname=`cat "$dir" | sed -n 's/.*#SBATCH --job-name=//p'`
-  echo $jobname
   grep_result=`squeue -u samait -n "$jobname" | grep "shfq"`
   job_not_launched=0
   if [ -z "$grep_result" ]; then
@@ -13,5 +12,4 @@ for dir in slurm_jobs/*; do
   else
     echo "Job launched"
   fi
-  
 done
