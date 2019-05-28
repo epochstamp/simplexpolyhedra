@@ -339,7 +339,7 @@ class SimPolyhedra():
             i += self.featureSizes[2]
         if true_sizes[3] > 0:
             if i < 0: i == 0
-            dynamicFeatures[i+0] = np.square(reduced_cost-np.min(self.state[0,1:]))
+            dynamicFeatures[i+0] = reduced_cost/np.min(self.state[0,1:]) #np.square(reduced_cost-np.min(self.state[0,1:]))
         print (dynamicFeatures)
         return np.concatenate([self.staticFeatures[:,act],dynamicFeatures]) if true_sizes[0] > 0 else dynamicFeatures
     
