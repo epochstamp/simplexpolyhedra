@@ -1,7 +1,7 @@
 #!/bin/bash
 # Submission script for Vega
 #SBATCH --job-name=shfq_%ijob
-#SBATCH --time=12:00:00 # hh:mm:ss
+#SBATCH --time=20:00:00 # hh:mm:ss
 #SBATCH --cpus-per-task=12
 #
 #SBATCH --ntasks=1
