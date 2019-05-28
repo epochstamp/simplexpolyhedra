@@ -86,8 +86,12 @@ class FQI_Agent(object):
         return "results/geotype="+self.env.getType()+"/vertices="+str(self.args.vertices)+"/feature_mode="+str(self.args.feature_mode)+"/"+estimator_foldername+"/bias_exploration_coeff="+str(self.d_prob)+"/n_episodes="+str(self.args.n_episodes)+"/horizon_time="+str(self.args.horizon_time)+"/seed="+str(self.args.seed)+"/"
 
     def generateEpisode(self, tup):
-        env, steps, policy, return_mode, perform_reset, id_env = tup
+        env, policy, return_mode, perform_reset, id_env = tup
         LS = []
+        try:
+            steps = env.maxSteps
+        except:
+            steps = self.args.horizon_time
         if perform_reset:
             env.reset()
         done = False
@@ -97,7 +101,7 @@ class FQI_Agent(object):
             if return_mode == 0:
                 features = env.features(act, mode=self.mode)
                 _, r, done, _ = env.step(act) 
-                LS.append((features,r,done, [env.features(a,mode=self.mode) for a in list(set(env.getAvailableActions()))], i+1))
+                LS.append((features,r,done, [env.features(a,mode=self.mode) for a in list(env.getAvailableActions())], i+1))
             elif return_mode == 1:
                 _, r, done, _ = env.step(act)
                 LS.append((r,i+1))
@@ -367,9 +371,9 @@ class FQI_Agent(object):
             self.lst_parallel_rpolicy = []
             self.lst_parallel_apolicy = []
             for k,e in self.envs_test.items():
-                self.lst_parallel_rpolicy.extend([(deepcopy(e), e.maxSteps, self._reflexPolicy, 1, False, (k,"rpolicy")) for _ in range(self.args.n_episodes_test)])
-            [x[0].reset() for x in self.lst_parallel_rpolicy]
-            self.lst_parallel_apolicy = [(deepcopy(x[0]), x[1], self._agentPolicy, x[3], x[4], (x[5][0],"apolicy")) for x in self.lst_parallel_rpolicy]
+                self.lst_parallel_rpolicy.extend([(deepcopy(e), self._reflexPolicy, 1, False, (k,"rpolicy")) for _ in range(self.args.n_episodes_test)])
+        [x[0].reset() for x in self.lst_parallel_rpolicy]
+        self.lst_parallel_apolicy = [(deepcopy(x[0]), x[1], self._agentPolicy, x[3], x[4], (x[5][0],"apolicy")) for x in self.lst_parallel_rpolicy]
         if self.args.max_njobs > 1:
             with multiprocessing.Pool(self.args.max_njobs) as p:
                 LT_reflex = p.map(self.generateEpisode, self.lst_parallel_rpolicy)
