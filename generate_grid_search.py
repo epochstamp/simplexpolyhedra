@@ -46,7 +46,7 @@ commands["estimator"] = ["extratrees#n_estimators=100#n_jobs=4",
                          "gdboosting#n_estimators=100#loss=huber",
                          "gdboosting#n_estimators=250#loss=huber", 
                          "gdboosting#n_estimators=500#loss=huber"]
-commands["featuremode"] = [0,1,2]
+commands["featuremode"] = [12,14,15]
 commands["biasexplorationcoeff"] = [1.0,2.0,4.0]
 np.random.seed(200)
 commands["seed"] = list(set(np.random.choice(10000,30,replace=False)))
