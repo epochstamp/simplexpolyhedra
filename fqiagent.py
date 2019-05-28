@@ -144,6 +144,12 @@ class FQI_Agent(object):
                 LS = []
                 [LS.extend(e) for e in LTT] 
                 self.LSN = np.vstack(map(lambda x : np.vstack(x[-2]), LS))
+                self.inp = self.LS[:,:self.env.getFeatureSize(mode=self.mode)]
+                self.intervals = []
+                for _,_,_,lf,_ in LS:
+                    len_lf = len(lf)
+                    self.intervals.append((previous_k, previous_k+len_lf))
+                    previous_k += len_lf
         self.env.reset()
         if self.LS is None:
             
@@ -158,6 +164,7 @@ class FQI_Agent(object):
                 len_lf = len(lf)
                 self.intervals.append((previous_k, previous_k+len_lf))
                 previous_k += len_lf
+            self.inp = self.LS[:,:self.env.getFeatureSize(mode=self.mode)]
                
         # On first iteration, output is the reward
         if i == 0:
@@ -175,10 +182,9 @@ class FQI_Agent(object):
             Q_values.append(np.max(out_temp[beg:end]))
         maxQ_vector = np.asarray(Q_values)  
         notdone = 1 - self.LS[:,-1]
-        inp = self.LS[:,:self.env.getFeatureSize(mode=self.mode)]
         out = self.LS[:,-2] + env.gamma() * maxQ_vector * notdone
            
-        return (inp, out)
+        return (self.inp, out)
 
     def write_log_error(self, error):
         f = open(self.output_folder+"/errors.log","a+")
@@ -228,7 +234,7 @@ class FQI_Agent(object):
         L = self.generateRandomTuples(self.args.n_episodes, self.args.horizon_time)
         data = self.load_checkpoint()
         if data is not None:
-            numpy.random.set_state(data["random_state"]) 
+            np.random.set_state(data["random_state"]) 
             beg = data["iter"]
             if beg > I:
                 raise IterIndexSupToMaxIter("Set your number of iterations lower than the maximum number (or raise the latter)")
@@ -311,19 +317,6 @@ class FQI_Agent(object):
             n_previous = 0
             inputs = []
             available_acts_per_env = []
-            t = time.time()
-            """
-            with multiprocessing.Pool(self.args.max_njobs) as p:
-                features_acts = p.map(self._getFeaturesEnv, [env for env in lst_env if env is not None])
-                features, available_acts_per_env = map(list, zip(*features_acts))
-
-                for f in features:
-                    len_f = len(f)
-                    intervals.append((n_previous, n_previous + len_f))
-                    n_previous += len_f
-            inputs = [item for sublist in features for item in sublist]
-
-            """
             for env in lst_env:
                 if env is not None:
                     acts = env.getAvailableActions()
@@ -332,12 +325,7 @@ class FQI_Agent(object):
                     intervals.append((n_previous, n_previous + len_acts))
                     n_previous += len_acts
                     inputs += [env.features(a, mode=self.mode) for a in acts]
-            
-            print("Preprocessing time", time.time() - t)
-            t = time.time()
             whole_acts = self.RC.predict(inputs)
-            print("Predict time", time.time() - t)
-            t = time.time()
             for i in range(len_lst_env):
                 env = lst_env[i]
                 if env is not None:
@@ -351,7 +339,6 @@ class FQI_Agent(object):
                         lst_env[i] = None
                         n_envs_remaining -= 1
                         lst_out[i] = (lst_out[i][0], lst_out[i][1],done)
-            print("Step time", time.time() - t)
         return lst_out
         
                          
@@ -383,19 +370,14 @@ class FQI_Agent(object):
                 self.lst_parallel_rpolicy.extend([(deepcopy(e), e.maxSteps, self._reflexPolicy, 1, False, (k,"rpolicy")) for _ in range(self.args.n_episodes_test)])
             [x[0].reset() for x in self.lst_parallel_rpolicy]
             self.lst_parallel_apolicy = [(deepcopy(x[0]), x[1], self._agentPolicy, x[3], x[4], (x[5][0],"apolicy")) for x in self.lst_parallel_rpolicy]
-        print("Test reflex policy...")
-        t = time.time()
         if self.args.max_njobs > 1:
             with multiprocessing.Pool(self.args.max_njobs) as p:
                 LT_reflex = p.map(self.generateEpisode, self.lst_parallel_rpolicy)
         else:
             LT_reflex = [self.generateEpisode(x) for x in self.lst_parallel_rpolicy]
-        print("Done in ",time.time() - t," seconds.\n Test agent policy...") 
         LT_agent = self.generateAgentEpisodes(self.lst_parallel_apolicy)
         LT = LT_reflex + LT_agent
-        print("Done. Write statistics...") 
         self._writeStatistics(LT, d_stats)
-        print("Done.")
 
         #Write feature importance
         if not os.path.isfile(self.output_folder+"/feature_importances.csv") or (self.overwrite_mode == "w" and self.output_folder+"/feature_importances.csv" not in self.locked):
