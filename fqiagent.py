@@ -112,7 +112,7 @@ class FQI_Agent(object):
 
         if os.path.isfile(self.output_folder+"/learning_set.dmp") and self.overwrite_mode == "a":
             return load(self.output_folder+"/learning_set.dmp")
-
+        self.env.maxSteps = steps
         if (self.args.max_njobs > 1): 
             with multiprocessing.Pool(self.args.max_njobs) as p:
                 LS = p.map(self.generateEpisode, [(deepcopy(self.env), steps, self._randomBiasedPolicy, 0, True, "") for _ in range(N)])
