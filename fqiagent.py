@@ -312,8 +312,8 @@ class FQI_Agent(object):
         LT_reflex = LT[:len(LT)//2]
         LT_agent = LT[len(LT)//2:]
         for k,f in f_stats.items():
-            filtered_stats_agent = [t for t in LT_agent if t[1][0] == k]
             filtered_stats_reflex = [t for t in LT_reflex if t[1][0] == k]
+            filtered_stats_agent = [t for t in LT_agent if t[1][0] == k]
             success_rate = len([t for t in filtered_stats_agent if t[2]]) / len(LT_agent)
             diffperfs = [filtered_stats_agent[i][0][-1][1] - filtered_stats_reflex[i][0][-1][1] for i in range(len(filtered_stats_agent)) if filtered_stats_agent[i][-1]] 
             cond_diffperf = len(diffperfs) > 0
@@ -329,7 +329,7 @@ class FQI_Agent(object):
         return [env.features(a, mode=self.mode) for a in available_acts], available_acts
             
     def generateAgentEpisodes(self, lst):
-        lst_out = [([],x[-1],False) for x in lst]
+        lst_out = [([],x[4],False) for x in lst]
         lst_env = [x[0] for x in lst]
         n_envs_remaining = len(lst_env)
         len_lst_env = n_envs_remaining
@@ -416,8 +416,8 @@ class FQI_Agent(object):
         self.lst_parallel_apolicy = [(deepcopy(x[0]), self._agentPolicy, x[2], x[3], (x[4][0],"apolicy"), x[5], x[6]) for x in self.lst_parallel_rpolicy]
         #print("Begin test on reflex policy...")
         #t = time.time()
+        lists_parallels["rPolicyTrajs"] = self.lst_parallel_rpolicy
         if self.args.max_njobs > 1:
-            lists_parallels["rPolicyTrajs"] = self.lst_parallel_rpolicy
             with multiprocessing.Pool(self.args.max_njobs) as p:
                 LT_reflex = p.map(generateEpisode, self.lst_parallel_rpolicy_indexes)
         else:
