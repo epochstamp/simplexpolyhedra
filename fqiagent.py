@@ -373,7 +373,7 @@ class FQI_Agent(object):
             for k,e in self.envs_test.items():
                 self.lst_parallel_rpolicy.extend([(deepcopy(e), self._reflexPolicy, 1, False, (k,"rpolicy")) for _ in range(self.args.n_episodes_test)])
         [x[0].reset() for x in self.lst_parallel_rpolicy]
-        self.lst_parallel_apolicy = [(deepcopy(x[0]), x[1], self._agentPolicy, x[3], x[4], (x[5][0],"apolicy")) for x in self.lst_parallel_rpolicy]
+        self.lst_parallel_apolicy = [(deepcopy(x[0]), self._agentPolicy, x[2], x[3], (x[4][0],"apolicy")) for x in self.lst_parallel_rpolicy]
         if self.args.max_njobs > 1:
             with multiprocessing.Pool(self.args.max_njobs) as p:
                 LT_reflex = p.map(self.generateEpisode, self.lst_parallel_rpolicy)
