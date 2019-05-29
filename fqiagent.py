@@ -15,6 +15,7 @@ import argparse
 import glob
 from shutil import copyfile
 import configparser
+from operator import itemgetter
 
 """
         Fitted-Q-Iteration Agent (FQI) with Extra Trees. For continuous state space and discrete state space.
@@ -30,6 +31,42 @@ class IterIndexSupToMaxIter(Exception):
 class ConfigParseError(Exception):
     pass
 
+
+lists_parallels = dict()
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
+
+def generateEpisode(t):
+    global lists_parallels
+    key, i = t
+    tup = lists_parallels[key][i]
+    env, policy, return_mode, perform_reset, id_env, mode, steps = tup
+    LS = []
+    if perform_reset:
+        env.reset()
+    done = False
+    i = 0
+    while not done and i < steps:
+        act = policy(env)
+        if return_mode == 0:
+            features = env.features(act, mode=mode)
+            _, r, done, _ = env.step(act) 
+            LS.append((features,r,done, [env.features(a,mode=mode) for a in env.getAvailableActions()], i+1))
+        elif return_mode == 1:
+            _, r, done, _ = env.step(act)
+            LS.append((r,i+1))
+        i += 1
+    return (LS, id_env, done) 
+
+
+def getEnvPhis(t):
+    global lists_parallels
+    key,i,mode  = t
+    env = lists_parallels[key][i]
+    acts = env.getAvailableActions()
+    return ([env.features(a, mode=mode) for a in acts], acts) if env is not None else None
+    
 
 class FQI_Agent(object):
 
@@ -85,39 +122,21 @@ class FQI_Agent(object):
         estimator_foldername = "estimator=" + self.args.estimator[1][0] + ("#" if len(self.args.estimator[1][1].keys()) > 0 else "") +  "#".join(sorted([k+"="+str(v) for k,v in self.args.estimator[1][1].items()]))
         return "results/geotype="+self.env.getType()+"/vertices="+str(self.args.vertices)+"/feature_mode="+str(self.args.feature_mode)+"/"+estimator_foldername+"/bias_exploration_coeff="+str(self.d_prob)+"/n_episodes="+str(self.args.n_episodes)+"/horizon_time="+str(self.args.horizon_time)+"/seed="+str(self.args.seed)+"/"
 
-    def generateEpisode(self, tup):
-        env, policy, return_mode, perform_reset, id_env = tup
-        LS = []
-        try:
-            steps = env.maxSteps
-        except:
-            steps = self.args.horizon_time
-        if perform_reset:
-            env.reset()
-        done = False
-        i = 0
-        while not done and i < steps:
-            act = policy(env)
-            if return_mode == 0:
-                features = env.features(act, mode=self.mode)
-                _, r, done, _ = env.step(act) 
-                LS.append((features,r,done, [env.features(a,mode=self.mode) for a in list(env.getAvailableActions())], i+1))
-            elif return_mode == 1:
-                _, r, done, _ = env.step(act)
-                LS.append((r,i+1))
-            i += 1
-        return (LS, id_env, done) 
+
 
     def generateRandomTuples(self, N, steps):
-
+        global list_parallel, list_parallel
         if os.path.isfile(self.output_folder+"/learning_set.dmp") and self.overwrite_mode == "a":
             return load(self.output_folder+"/learning_set.dmp")
         self.env.maxSteps = steps
+        lists_parallels["randomTuples"] = [(deepcopy(self.env), self._randomBiasedPolicy, 0, True, "", self.mode, self.args.horizon_time) for _ in range(N)]
+        lst_parallel_indexes = range(len(lists_parallels["randomTuples"]))
         if (self.args.max_njobs > 1): 
+            
             with multiprocessing.Pool(self.args.max_njobs) as p:
-                LS = p.map(self.generateEpisode, [(deepcopy(self.env), self._randomBiasedPolicy, 0, True, "") for _ in range(N)])
+                LS = p.map(generateEpisode, [("randomTuples", i) for i in lst_parallel_indexes])
         else:
-            LS = [self.generateEpisode((deepcopy(self.env), self._randomBiasedPolicy, 0, True, "")) for _ in range(N)]
+            LS = [generateEpisode(("randomTuples", i)) for i in lst_parallel_indexes]
         dump(LS, self.output_folder+"/learning_set.dmp", compress=9)
 
         if not os.path.isfile(self.output_folder+"/training_stats.csv") or (self.overwrite_mode == "w" and self.output_folder+"/training_stats.csv" not in self.locked):
@@ -315,34 +334,53 @@ class FQI_Agent(object):
         n_envs_remaining = len(lst_env)
         len_lst_env = n_envs_remaining
         index_timestep = [0 for _ in lst]
-        
-        while n_envs_remaining > 0:
-            intervals = []
-            n_previous = 0
-            inputs = []
-            available_acts_per_env = []
-            for env in lst_env:
-                if env is not None:
-                    acts = env.getAvailableActions()
-                    available_acts_per_env.append(acts)
+        env_indexes = [("lst_env", i, self.mode) for i in range(len_lst_env)]
+        lists_parallels["lst_env"] = lst_env
+        with multiprocessing.Pool(self.args.max_njobs) as p:
+            while n_envs_remaining > 0:
+                intervals = []
+                n_previous = 0
+                #print("Begin preprocess inputs before predict...")
+                #t = time.time()
+                """
+                for env in lst_env:
+                    if env is not None:
+                        acts = env.getAvailableActions()
+                        available_acts_per_env.append(acts)
+                        len_acts = len(acts)
+                        intervals.append((n_previous, n_previous + len_acts))
+                        n_previous += len_acts
+                        inputs += [env.features(a, mode=self.mode) for a in acts]
+                """
+                input_indexes = [x for x in p.map(getEnvPhis, env_indexes) if x is not None]
+                inputs,available_acts_per_env = list(map(itemgetter(0),input_indexes)), list(map(itemgetter(1),input_indexes))
+
+                for acts in available_acts_per_env:
+                    
                     len_acts = len(acts)
                     intervals.append((n_previous, n_previous + len_acts))
                     n_previous += len_acts
-                    inputs += [env.features(a, mode=self.mode) for a in acts]
-            whole_acts = self.RC.predict(inputs)
-            for i in range(len_lst_env):
-                env = lst_env[i]
-                if env is not None:
-                    beg,end = intervals.pop(0)
-                    available_acts = available_acts_per_env.pop(0)
-                    a = available_acts[np.argmax(whole_acts[beg:end])]
-                    _, r, done, _ = env.step(a)
-                    lst_out[i][0].append((r,index_timestep[i]+1))
-                    index_timestep[i] += 1
-                    if done or index_timestep[i] >= env.maxSteps:
-                        lst_env[i] = None
-                        n_envs_remaining -= 1
-                        lst_out[i] = (lst_out[i][0], lst_out[i][1],done)
+                #print("Done in", time.time() - t, "seconds !")
+                #print("Begin tree-based decision making...")
+                #t = time.time()
+                whole_acts = self.RC.predict(flatten(inputs))
+                #print("Done in", time.time() - t, "seconds !")
+                #print("Begin environment updates...")
+                #t = time.time()
+                for i in range(len_lst_env):
+                    env = lst_env[i]
+                    if env is not None:
+                        beg,end = intervals.pop(0)
+                        available_acts = available_acts_per_env.pop(0)
+                        a = available_acts[np.argmax(whole_acts[beg:end])]
+                        _, r, done, _ = env.step(a)
+                        lst_out[i][0].append((r,index_timestep[i]+1))
+                        index_timestep[i] += 1
+                        if done or index_timestep[i] >= env.maxSteps:
+                            lst_env[i] = None
+                            n_envs_remaining -= 1
+                            lst_out[i] = (lst_out[i][0], lst_out[i][1],done)
+                #print("Done in", time.time() - t, "seconds !")
         return lst_out
         
                          
@@ -351,6 +389,7 @@ class FQI_Agent(object):
             
 
     def test(self):
+        global lists_parallels
         #old_njobs = self.RC.n_jobs
         #self.RC.n_jobs = 1
         #Initialize test file if it does not exists
@@ -371,15 +410,23 @@ class FQI_Agent(object):
             self.lst_parallel_rpolicy = []
             self.lst_parallel_apolicy = []
             for k,e in self.envs_test.items():
-                self.lst_parallel_rpolicy.extend([(deepcopy(e), self._reflexPolicy, 1, False, (k,"rpolicy")) for _ in range(self.args.n_episodes_test)])
+                self.lst_parallel_rpolicy.extend([(deepcopy(e), self._reflexPolicy, 1, False, (k,"rpolicy"), self.mode, e.maxSteps) for _ in range(self.args.n_episodes_test)])
+            self.lst_parallel_rpolicy_indexes = [("rPolicyTrajs",i) for i in range(len(self.lst_parallel_rpolicy))]
         [x[0].reset() for x in self.lst_parallel_rpolicy]
-        self.lst_parallel_apolicy = [(deepcopy(x[0]), self._agentPolicy, x[2], x[3], (x[4][0],"apolicy")) for x in self.lst_parallel_rpolicy]
+        self.lst_parallel_apolicy = [(deepcopy(x[0]), self._agentPolicy, x[2], x[3], (x[4][0],"apolicy"), x[5], x[6]) for x in self.lst_parallel_rpolicy]
+        #print("Begin test on reflex policy...")
+        #t = time.time()
         if self.args.max_njobs > 1:
+            lists_parallels["rPolicyTrajs"] = self.lst_parallel_rpolicy
             with multiprocessing.Pool(self.args.max_njobs) as p:
-                LT_reflex = p.map(self.generateEpisode, self.lst_parallel_rpolicy)
+                LT_reflex = p.map(generateEpisode, self.lst_parallel_rpolicy_indexes)
         else:
-            LT_reflex = [self.generateEpisode(x) for x in self.lst_parallel_rpolicy]
+            LT_reflex = [generateEpisode(x) for x in self.lst_parallel_rpolicy_indexes]
+        #print("Done in", time.time() - t, "seconds !")
+        #print("Begin test on agent policy...")
+        #t = time.time()
         LT_agent = self.generateAgentEpisodes(self.lst_parallel_apolicy)
+        #print("Done in", time.time() - t, "seconds !")
         LT = LT_reflex + LT_agent
         self._writeStatistics(LT, d_stats)
 
