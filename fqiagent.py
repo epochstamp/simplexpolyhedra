@@ -332,13 +332,14 @@ class FQI_Agent(object):
         return [env.features(a, mode=self.mode) for a in available_acts], available_acts
             
     def generateAgentEpisodes(self, lst):
+        global lists_parallels
         lst_out = [([],x[4],False) for x in lst]
         lst_env = [x[0] for x in lst]
         n_envs_remaining = len(lst_env)
         len_lst_env = n_envs_remaining
         index_timestep = [0 for _ in lst]
         env_indexes = [("lst_env", i, self.mode) for i in range(len_lst_env)]
-        lists_parallels["lst_env"] = lst_env
+
         with multiprocessing.Pool(self.args.max_njobs) as p:
             while n_envs_remaining > 0:
                 intervals = []
@@ -355,6 +356,7 @@ class FQI_Agent(object):
                         n_previous += len_acts
                         inputs += [env.features(a, mode=self.mode) for a in acts]
                 """
+                lists_parallels["lst_env"] = lst_env
                 input_indexes = [x for x in p.map(getEnvPhis, env_indexes) if x is not None]
                 inputs,available_acts_per_env = list(map(itemgetter(0),input_indexes)), list(map(itemgetter(1),input_indexes))
 

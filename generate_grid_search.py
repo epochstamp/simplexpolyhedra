@@ -30,26 +30,24 @@ def computeMD5hash(my_string):
     return m.hexdigest()
 
 commands = dict()
-commands["nepisodes"] = [100,500,1000]
-commands["horizontime"] = [100,250]
+commands["nepisodes"] = [100,500]
+commands["horizontime"] = [75,150]
 commands["estimator"] = ["extratrees#n_estimators=100#n_jobs=4",
                          "extratrees#n_estimators=250#n_jobs=6", 
-                         "extratrees#n_estimators=500#n_jobs=8", 
-                         "extratrees#n_estimators=1000#n_jobs=12", 
+                         "extratrees#n_estimators=500#n_jobs=8", , 
                          "randomforest#n_estimators=100#n_jobs=4",
                          "randomforest#n_estimators=250#n_jobs=6", 
-                         "randomforest#n_estimators=500#n_jobs=8", 
-                         "randomforest#n_estimators=1000#n_jobs=12",
-                         "gdboosting#n_estimators=100#loss=huber#warm_start=True",
-                         "gdboosting#n_estimators=250#loss=huber#warm_start=True", 
-                         "gdboosting#n_estimators=500#loss=huber#warm_start=True",
-                         "gdboosting#n_estimators=100#loss=huber",
-                         "gdboosting#n_estimators=250#loss=huber", 
-                         "gdboosting#n_estimators=500#loss=huber"]
+                         "randomforest#n_estimators=500#n_jobs=8"]
+                         #"gdboosting#n_estimators=100#loss=huber#warm_start=True",
+                         #"gdboosting#n_estimators=250#loss=huber#warm_start=True", 
+                         #"gdboosting#n_estimators=500#loss=huber#warm_start=True",
+                         #"gdboosting#n_estimators=100#loss=huber",
+                         #"gdboosting#n_estimators=250#loss=huber", 
+                         #"gdboosting#n_estimators=500#loss=huber"]
 commands["featuremode"] = [12,14,15]
-commands["biasexplorationcoeff"] = [1.0,2.0,4.0]
+commands["biasexplorationcoeff"] = [2.0,4.0]
 np.random.seed(200)
-commands["seed"] = list(set(np.random.choice(10000,30,replace=False)))
+commands["seed"] = list(set(np.random.choice(10000,6,replace=False)))
 
 def f(x):
    pattern, combination = x
