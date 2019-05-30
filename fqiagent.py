@@ -280,6 +280,9 @@ class FQI_Agent(object):
             self.save_checkpoint(i, False)
             self.test()
             self.save_checkpoint(i, True)
+        f = open(self.output_folder+"/number_iters_done.dat", "w+")
+        f.write(str(I) + "\n")
+        f.close()
             
 
         
