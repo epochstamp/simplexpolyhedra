@@ -34,7 +34,7 @@ commands["nepisodes"] = [100,500]
 commands["horizontime"] = [75,150]
 commands["estimator"] = ["extratrees#n_estimators=100#n_jobs=4",
                          "extratrees#n_estimators=250#n_jobs=6", 
-                         "extratrees#n_estimators=500#n_jobs=8", , 
+                         "extratrees#n_estimators=500#n_jobs=8", 
                          "randomforest#n_estimators=100#n_jobs=4",
                          "randomforest#n_estimators=250#n_jobs=6", 
                          "randomforest#n_estimators=500#n_jobs=8"]
