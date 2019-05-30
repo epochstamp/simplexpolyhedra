@@ -322,7 +322,7 @@ class SimPolyhedra():
             i += self.featureSizes[1]
     
         if true_sizes[2] > 0:
-            if i > 0: i == 0
+            if i > 0: i = 0
             # bounds/constraint features : test ratio
             mask = (self.state[:,1+act]>tol) & (self.state[:,0]>tol)
             mask[0] = False
@@ -337,7 +337,7 @@ class SimPolyhedra():
             dynamicFeatures[i+4] = reduced_cost*mbA
             i += self.featureSizes[2]
         if true_sizes[3] > 0:
-            if i < 0: i == 0
+            if i < 0: i = 0
             dynamicFeatures[i+0] = (np.min(self.state[0,1:])/reduced_cost)**2 if abs(reduced_cost) > 0 else -1 #np.square(reduced_cost-np.min(self.state[0,1:]))
         return np.concatenate([self.staticFeatures[:,act],dynamicFeatures]) if true_sizes[0] > 0 else dynamicFeatures
     
