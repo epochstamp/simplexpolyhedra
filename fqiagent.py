@@ -64,7 +64,7 @@ def getEnvPhis(t):
     global lists_parallels
     key,i,mode  = t
     env = lists_parallels[key][i]
-    acts = env.getAvailableActions()
+    acts = env.getAvailableActions() if env is not None else None
     return ([env.features(a, mode=mode) for a in acts], acts) if env is not None else None
     
 
