@@ -208,9 +208,10 @@ class SimPolyhedra():
         dynamicFeatures = np.zeros([np.sum(true_sizes[1:]*self.featureSizes[1:])])
         k = 0
         i = -1
+        reduced_cost = self.state[0,1+act]
         if true_sizes[1] > 0:
             if i < 0 : i = 0 
-            reduced_cost = self.state[0,1+act]
+            
             abs_reduced_cost = abs(reduced_cost)
             # cost function features
             dynamicFeatures[i+0] = sign(reduced_cost)
@@ -341,7 +342,7 @@ class SimPolyhedra():
             dynamicFeatures[i+0] = (np.min(self.state[0,1:])/reduced_cost)**2 if abs(reduced_cost) > 0 else -1 #np.square(reduced_cost-np.min(self.state[0,1:]))
         return np.concatenate([self.staticFeatures[:,act],dynamicFeatures]) if true_sizes[0] > 0 else dynamicFeatures
     
-    def __init__(self, A, b, c, type = 'polyhedron'):
+    def __init__(self, A, b, c, type = 'polyhedron', type_rew="montecarlo"):
         """
         Instantiation of a Simplex-Polyhedra problem
         for standardized linear programs (represented
@@ -364,7 +365,7 @@ class SimPolyhedra():
         self.c = c
         
         self.initFeatures()
-        
+        self.type_rew = type_rew
         self.type = type
 
     def getNumberOfActions(self): return self.n
@@ -619,12 +620,16 @@ class SimPolyhedra():
                 self.entered[act] += 1
                 self.steps += 1
 
-            reward = 0#0.01 * -self.entered[act]/self.steps - 0.01 * sign(self.state[0,1+act])
-            
-            # Termination if optimal
-            if self.isOptimal():
-                reward = 1
-                done = True
+            done = self.isOptimal()
+            if self.type_rew == "montecarlo":
+                # Terminal reward when optimal else 0
+                reward = 0 if not done else 1#0.01 * -self.entered[act]/self.steps - 0.01 * sign(self.state[0,1+act])
+            elif self.type_rew == "negtick"
+                reward = -1
+            elif self.type_rew == "small_penalties":
+                reward = -0.01 * (self.state[0,1+act]/np.linalg.norm(self.state[0,:]))
+            else: 
+                raise NotImplementedError("Reward mode not recognized.")
                 
         return self.observe(), reward, done, {}
  
