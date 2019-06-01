@@ -624,7 +624,7 @@ class SimPolyhedra():
             if self.type_rew == "montecarlo":
                 # Terminal reward when optimal else 0
                 reward = 0 if not done else 1#0.01 * -self.entered[act]/self.steps - 0.01 * sign(self.state[0,1+act])
-            elif self.type_rew == "negtick"
+            elif self.type_rew == "negtick":
                 reward = -1
             elif self.type_rew == "small_penalties":
                 reward = -0.01 * (self.state[0,1+act]/np.linalg.norm(self.state[0,:]))
