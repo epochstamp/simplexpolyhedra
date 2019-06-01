@@ -379,9 +379,6 @@ class FQI_Agent(object):
                     beg,end = intervals.pop(0)
                     available_acts = available_acts_per_env.pop(0)
                     a = available_acts[np.argmax(whole_acts[beg:end])]
-                    print(a)
-                    print(available_acts)
-                    print(whole_acts[beg:end])
                     _, r, done, _ = env.step(a)
                     lst_out[i][0].append((r,index_timestep[i]+1))
                     index_timestep[i] += 1
