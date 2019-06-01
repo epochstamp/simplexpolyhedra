@@ -332,60 +332,62 @@ class FQI_Agent(object):
         return [env.features(a, mode=self.mode) for a in available_acts], available_acts
             
     def generateAgentEpisodes(self, lst):
-        global lists_parallels
+        global list_parallels
         lst_out = [([],x[4],False) for x in lst]
         lst_env = [x[0] for x in lst]
         n_envs_remaining = len(lst_env)
         len_lst_env = n_envs_remaining
         index_timestep = [0 for _ in lst]
         env_indexes = [("lst_env", i, self.mode) for i in range(len_lst_env)]
-
-        with multiprocessing.Pool(self.args.max_njobs) as p:
-            while n_envs_remaining > 0:
-                intervals = []
-                n_previous = 0
-                #print("Begin preprocess inputs before predict...")
-                #t = time.time()
-                """
-                for env in lst_env:
-                    if env is not None:
-                        acts = env.getAvailableActions()
-                        available_acts_per_env.append(acts)
-                        len_acts = len(acts)
-                        intervals.append((n_previous, n_previous + len_acts))
-                        n_previous += len_acts
-                        inputs += [env.features(a, mode=self.mode) for a in acts]
-                """
-                lists_parallels["lst_env"] = lst_env
-                input_indexes = [x for x in p.map(getEnvPhis, env_indexes) if x is not None]
-                inputs,available_acts_per_env = list(map(itemgetter(0),input_indexes)), list(map(itemgetter(1),input_indexes))
-
-                for acts in available_acts_per_env:
-                    
+        
+         
+        while n_envs_remaining > 0:
+            intervals = []
+            n_previous = 0
+            #print("Begin preprocess inputs before predict...")
+            #t = time.time()
+            """
+            for env in lst_env:
+                if env is not None:
+                    acts = env.getAvailableActions()
+                    available_acts_per_env.append(acts)
                     len_acts = len(acts)
                     intervals.append((n_previous, n_previous + len_acts))
                     n_previous += len_acts
-                #print("Done in", time.time() - t, "seconds !")
-                #print("Begin tree-based decision making...")
-                #t = time.time()
-                whole_acts = self.RC.predict(flatten(inputs))
-                #print("Done in", time.time() - t, "seconds !")
-                #print("Begin environment updates...")
-                #t = time.time()
-                for i in range(len_lst_env):
-                    env = lst_env[i]
-                    if env is not None:
-                        beg,end = intervals.pop(0)
-                        available_acts = available_acts_per_env.pop(0)
-                        a = available_acts[np.argmax(whole_acts[beg:end])]
-                        _, r, done, _ = env.step(a)
-                        lst_out[i][0].append((r,index_timestep[i]+1))
-                        index_timestep[i] += 1
-                        if done or index_timestep[i] >= env.maxSteps:
-                            lst_env[i] = None
-                            n_envs_remaining -= 1
-                            lst_out[i] = (lst_out[i][0], lst_out[i][1],done)
-                #print("Done in", time.time() - t, "seconds !")
+                    inputs += [env.features(a, mode=self.mode) for a in acts]
+            """
+            lists_parallels["lst_env"] = lst_env
+            p = multiprocessing.Pool(self.args.max_njobs)
+            input_indexes = [x for x in p.map(getEnvPhis, env_indexes) if x is not None]
+            p.close()
+            inputs,available_acts_per_env = list(map(itemgetter(0),input_indexes)), list(map(itemgetter(1),input_indexes))
+            for acts in available_acts_per_env:
+                
+                len_acts = len(acts)
+                intervals.append((n_previous, n_previous + len_acts))
+                n_previous += len_acts
+            #print("Done in", time.time() - t, "seconds !")
+            #print("Begin tree-based decision making...")
+            #t = time.time()
+            whole_acts = self.RC.predict(flatten(inputs))
+            #print("Done in", time.time() - t, "seconds !")
+            #print("Begin environment updates...")
+            #t = time.time()
+            for i in range(len_lst_env):
+                env = lst_env[i]
+                if env is not None:
+                    beg,end = intervals.pop(0)
+                    available_acts = available_acts_per_env.pop(0)
+                    a = available_acts[np.argmax(whole_acts[beg:end])]
+                    _, r, done, _ = env.step(a)
+                    lst_out[i][0].append((r,index_timestep[i]+1))
+                    index_timestep[i] += 1
+                    if done or index_timestep[i] >= env.maxSteps:
+                        lst_env[i] = None
+                        n_envs_remaining -= 1
+                        lst_out[i] = (lst_out[i][0], lst_out[i][1],done)
+            #print("Done in", time.time() - t, "seconds !")
+            
         return lst_out
         
                          
