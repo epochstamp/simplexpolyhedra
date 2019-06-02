@@ -34,8 +34,8 @@ commands["nepisodes"] = [250,500]
 commands["horizontime"] = [100,150]
 commands["estimator"] = ["extratrees#n_estimators=250#n_jobs=6", 
                          "extratrees#n_estimators=500#n_jobs=8", 
-                         "randomforest#n_estimators=250#n_jobs=6", 
-                         "randomforest#n_estimators=500#n_jobs=8"]
+                         "extratrees#n_estimators=1000#n_jobs=8#max_features=0.8", 
+                         "extratrees#n_estimators=2000#n_jobs=8#max_features=0.65"]
                          #"gdboosting#n_estimators=100#loss=huber#warm_start=True",
                          #"gdboosting#n_estimators=250#loss=huber#warm_start=True", 
                          #"gdboosting#n_estimators=500#loss=huber#warm_start=True",
