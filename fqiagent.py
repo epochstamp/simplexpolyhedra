@@ -41,8 +41,9 @@ def generateEpisode(t):
     global lists_parallels
     key, i = t
     tup = lists_parallels[key][i]
-    env, policy, return_mode, perform_reset, id_env, mode, steps = tup
+    e, policy, return_mode, perform_reset, id_env, mode, steps, make_copy = tup
     LS = []
+    env = e if not make_copy else deepcopy(e)
     if perform_reset:
         env.reset()
     done = False
@@ -129,7 +130,7 @@ class FQI_Agent(object):
         if os.path.isfile(self.output_folder+"/learning_set.dmp") and self.overwrite_mode == "a":
             return load(self.output_folder+"/learning_set.dmp")
         self.env.maxSteps = steps
-        lists_parallels["randomTuples"] = [(deepcopy(self.env), self._randomBiasedPolicy, 0, True, "", self.mode, self.args.horizon_time) for _ in range(N)]
+        lists_parallels["randomTuples"] = [(self.env, self._randomBiasedPolicy, 0, True, "", self.mode, self.args.horizon_time, True) for _ in range(N)]
         lst_parallel_indexes = range(len(lists_parallels["randomTuples"]))
         if (self.args.max_njobs > 1): 
             
@@ -417,7 +418,7 @@ class FQI_Agent(object):
             self.lst_parallel_rpolicy = []
             self.lst_parallel_apolicy = []
             for k,e in self.envs_test.items():
-                self.lst_parallel_rpolicy.extend([(deepcopy(e), self._reflexPolicy, 1, False, (k,"rpolicy"), self.mode, e.maxSteps) for _ in range(self.args.n_episodes_test)])
+                self.lst_parallel_rpolicy.extend([(deepcopy(e), self._reflexPolicy, 1, False, (k,"rpolicy"), self.mode, e.maxSteps, False) for _ in range(self.args.n_episodes_test)])
             self.lst_parallel_rpolicy_indexes = [("rPolicyTrajs",i) for i in range(len(self.lst_parallel_rpolicy))]
         [x[0].reset() for x in self.lst_parallel_rpolicy]
         self.lst_parallel_apolicy = [(deepcopy(x[0]), self._agentPolicy, x[2], x[3], (x[4][0],"apolicy"), x[5], x[6]) for x in self.lst_parallel_rpolicy]
