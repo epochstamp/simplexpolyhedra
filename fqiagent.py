@@ -554,7 +554,7 @@ if __name__=="__main__":
     parser.add_argument("--overwrite-mode", "-O",help="Overwrite mode (w = full overwrite, a = use checkpoint if any (otherwise acts as w), s = don't do anything",choices=["w","a","s"], default="s")
     parser.add_argument("--max-njobs","-j",help="Maximum number of jobs allowed for any parallelizable operation",type=strictpos_int, default=1)
     parser.add_argument("--estimator","-m",help="Estimator (ensemble of trees, neural net...), followed with his own arguments (separated by #)",type=estimator, default="extratrees")
-    parser.add_argument("--bias-exploration-coeff","-b",help="Maximal estimator tree depth",type=strictpos_float, default=2.0)
+    parser.add_argument("--bias-exploration-coeff","-b",help="Weight for the exploration bias (i.e., increase in probability to use reflex policy)",type=strictpos_float, default=2.0)
     parser.add_argument("--n-episodes","-E",help="Number of episodes (train)",type=strictpos_int, default=100)
     parser.add_argument("--n-episodes-test","-e",help="Number of episodes per environment test",type=strictpos_int, default=100)
     parser.add_argument("--horizon-time","-T",help="Maximum horizon time before cutting episode",type=strictpos_int, default=100)
