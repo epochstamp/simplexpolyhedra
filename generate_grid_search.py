@@ -30,11 +30,10 @@ def computeMD5hash(my_string):
     return m.hexdigest()
 
 commands = dict()
-commands["nepisodes"] = [500,750]
+commands["nepisodes"] = [1000,1500]
 commands["horizontime"] = [100,150]
-commands["estimator"] = ["extratrees#n_estimators=250#n_jobs=6", 
-                         "extratrees#n_estimators=500#n_jobs=8", 
-                         "extratrees#n_estimators=1000#n_jobs=8#max_features=0.8", 
+commands["estimator"] = ["extratrees#n_estimators=500#n_jobs=8", 
+                         "extratrees#n_estimators=1500#n_jobs=10#max_features=0.8", 
                          "extratrees#n_estimators=2000#n_jobs=8#max_features=0.65"]
                          #"gdboosting#n_estimators=100#loss=huber#warm_start=True",
                          #"gdboosting#n_estimators=250#loss=huber#warm_start=True", 
@@ -44,8 +43,10 @@ commands["estimator"] = ["extratrees#n_estimators=250#n_jobs=6",
                          #"gdboosting#n_estimators=500#loss=huber"]
 commands["featuremode"] = [12,14,15]
 commands["biasexplorationcoeff"] = [2.0,4.0]
+commands["geotype"] = ["unitcube"]
+commands["vertices"] = [50]
 np.random.seed(200)
-commands["seed"] = list(set(np.random.choice(10000,6,replace=False)))
+commands["seed"] = list(set(np.random.choice(10000,5,replace=False)))
 
 def f(x):
    pattern, combination = x
