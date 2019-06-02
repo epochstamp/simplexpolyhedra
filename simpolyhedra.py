@@ -625,7 +625,7 @@ class SimPolyhedra():
                 # Terminal reward when optimal else 0
                 reward = 0 if not done else 1#0.01 * -self.entered[act]/self.steps - 0.01 * sign(self.state[0,1+act])
             elif self.type_rew == "negtick":
-                reward = -1
+                reward = -1 if not done else 1
             elif self.type_rew == "small_penalties":
                 reward = -0.01 * (self.state[0,1+act]/np.linalg.norm(self.state[0,:]))
             else: 
@@ -656,7 +656,7 @@ class SimPolyhedra():
     
     
 if __name__ == '__main__':
-    n = 50
+    n = 150
     P = SimPolyhedra.cube(n)
     """ 
     2 ways to initialize a basis

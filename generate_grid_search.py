@@ -30,7 +30,7 @@ def computeMD5hash(my_string):
     return m.hexdigest()
 
 commands = dict()
-commands["nepisodes"] = [250,500]
+commands["nepisodes"] = [500,750]
 commands["horizontime"] = [100,150]
 commands["estimator"] = ["extratrees#n_estimators=250#n_jobs=6", 
                          "extratrees#n_estimators=500#n_jobs=8", 
