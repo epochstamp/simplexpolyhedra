@@ -318,14 +318,15 @@ class FQI_Agent(object):
         for k,f in f_stats.items():
             filtered_stats_reflex = [t for t in LT_reflex if t[1][0] == k]
             filtered_stats_agent = [t for t in LT_agent if t[1][0] == k]
-            success_rate = len([t for t in filtered_stats_agent if t[2]]) / len(LT_agent)
+            success_rate_agent = len([t for t in filtered_stats_agent if t[2]]) / len(LT_agent)
+            success_rate_reflex = len([t for t in filtered_stats_reflex if t[2]]) / len(LT_reflex)
             diffperfs = [filtered_stats_agent[i][0][-1][1] - filtered_stats_reflex[i][0][-1][1] for i in range(len(filtered_stats_agent)) if filtered_stats_agent[i][-1]] 
             cond_diffperf = len(diffperfs) > 0
             mean_diffperf = np.mean(diffperfs) if cond_diffperf else -np.inf
             var_diffperf = np.var(diffperfs) if cond_diffperf else 0
             max_diffperf = np.max(diffperfs) if cond_diffperf else -np.inf
             min_diffperf = np.min(diffperfs) if cond_diffperf else -np.inf
-            lst_write = [str(success_rate), str(mean_diffperf), str(var_diffperf),str(min_diffperf), str(max_diffperf)]
+            lst_write = [str(success_rate_reflex),str(success_rate_agent), str(mean_diffperf), str(var_diffperf),str(min_diffperf), str(max_diffperf)]
             f.write(";".join(lst_write) + "\n")
 
     def _getFeaturesEnv(self, env):
@@ -409,7 +410,7 @@ class FQI_Agent(object):
         for keyword,testenv in self.envs_test.items():
             if not os.path.isfile(self.output_folder+"/"+keyword+"_stats.csv") or (self.overwrite_mode == "w" and self.output_folder+"/"+keyword+"_stats.csv" not in self.locked):
                 f = open(self.output_folder+"/"+keyword+"_stats.csv", "w+")
-                f.write("success_rate;mean_diffperf;var_diffperf;min_diffperf;max_diffperf\n")
+                f.write("success_rate_reflex;success_rate_agent;mean_diffperf;var_diffperf;min_diffperf;max_diffperf\n")
                 
                 f.close()
                 self.locked.add(self.output_folder+"/"+keyword+"_stats.csv")
