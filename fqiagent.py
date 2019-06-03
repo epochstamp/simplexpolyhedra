@@ -322,10 +322,10 @@ class FQI_Agent(object):
             success_rate_reflex = len([t for t in filtered_stats_reflex if t[2]]) / len(LT_reflex)
             diffperfs = [filtered_stats_agent[i][0][-1][1] - filtered_stats_reflex[i][0][-1][1] for i in range(len(filtered_stats_agent)) if filtered_stats_agent[i][-1]] 
             cond_diffperf = len(diffperfs) > 0
-            mean_diffperf = np.mean(diffperfs) if cond_diffperf else -np.inf
+            mean_diffperf = np.mean(diffperfs) if cond_diffperf else np.inf
             var_diffperf = np.var(diffperfs) if cond_diffperf else 0
-            max_diffperf = np.max(diffperfs) if cond_diffperf else -np.inf
-            min_diffperf = np.min(diffperfs) if cond_diffperf else -np.inf
+            max_diffperf = np.max(diffperfs) if cond_diffperf else np.inf
+            min_diffperf = np.min(diffperfs) if cond_diffperf else np.inf
             lst_write = [str(success_rate_reflex),str(success_rate_agent), str(mean_diffperf), str(var_diffperf),str(min_diffperf), str(max_diffperf)]
             f.write(";".join(lst_write) + "\n")
 
