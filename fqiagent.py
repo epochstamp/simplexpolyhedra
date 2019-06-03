@@ -318,8 +318,8 @@ class FQI_Agent(object):
         for k,f in f_stats.items():
             filtered_stats_reflex = [t for t in LT_reflex if t[1][0] == k]
             filtered_stats_agent = [t for t in LT_agent if t[1][0] == k]
-            success_rate_agent = len([t for t in filtered_stats_agent if t[2]]) / len(LT_agent)
-            success_rate_reflex = len([t for t in filtered_stats_reflex if t[2]]) / len(LT_reflex)
+            success_rate_agent = len([t for t in filtered_stats_agent if t[2]]) / len(filtered_stats_agent)
+            success_rate_reflex = len([t for t in filtered_stats_reflex if t[2]]) / len(filtered_stats_reflex)
             diffperfs = [filtered_stats_agent[i][0][-1][1] - filtered_stats_reflex[i][0][-1][1] for i in range(len(filtered_stats_agent)) if filtered_stats_agent[i][-1]] 
             cond_diffperf = len(diffperfs) > 0
             mean_diffperf = np.mean(diffperfs) if cond_diffperf else np.inf
