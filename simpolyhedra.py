@@ -323,7 +323,7 @@ class SimPolyhedra():
             i += self.featureSizes[1]
     
         if true_sizes[2] > 0:
-            if i > 0: i = 0
+            if i < 0: i = 0
             # bounds/constraint features : test ratio
             mask = (self.state[:,1+act]>tol) & (self.state[:,0]>tol)
             mask[0] = False
