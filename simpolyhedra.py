@@ -68,8 +68,8 @@ class SimPolyhedra():
     def initFeatures(self,tol = 1e-8):
         self.staticFeatures = np.zeros([27,self.n])
         #First one includes static feature size, the others are dynamic feature size
-        self.featureSizes = [27,23,5,1]
-        
+        self.featureSizes = [27,3,23,5,1]
+        self.lenFeatureSizes = len(self.featureSizes)
         c_pos = np.sum(self.c[self.c > 0])
         c_neg = -np.sum(self.c[self.c < 0])
         
@@ -194,29 +194,34 @@ class SimPolyhedra():
     """
 
     def getFeatureSize(self, mode=0):
-        true_sizes = np.unpackbits(np.asarray([mode], dtype=np.uint8))[-len(self.featureSizes):]
-        if true_sizes.shape[0] != len(self.featureSizes):
+        true_sizes = np.unpackbits(np.asarray([mode], dtype=np.uint8))[-self.lenFeatureSizes:]
+        if true_sizes.shape[0] != self.lenFeatureSizes:
             raise NotImplementedError("Mode not recognized")
         return np.sum(true_sizes * self.featureSizes)
 
     
     def features(self, act, mode=0, tol=1e-8):
-        true_sizes = np.unpackbits(np.asarray([mode], dtype=np.uint8))[-len(self.featureSizes):]
-        if true_sizes.shape[0] != len(self.featureSizes):
+        true_sizes = np.unpackbits(np.asarray([mode], dtype=np.uint8))[-self.lenFeatureSizes:]
+        if true_sizes.shape[0] != self.lenFeatureSizes:
             raise NotImplementedError("Mode not recognized")
 
         dynamicFeatures = np.zeros([np.sum(true_sizes[1:]*self.featureSizes[1:])])
         k = 0
         i = -1
         reduced_cost = self.state[0,1+act]
-        if true_sizes[1] > 0:
-            if i < 0 : i = 0 
-            
+        if true_sizes[1] > 0: 
+            if i < 0: i = 0
             abs_reduced_cost = abs(reduced_cost)
             # cost function features
             dynamicFeatures[i+0] = sign(reduced_cost)
             dynamicFeatures[i+1] = abs_reduced_cost/self.c_pos if self.c_pos > 0 else -1
             dynamicFeatures[i+2] = abs_reduced_cost/self.c_neg if self.c_neg > 0 else -1
+            i += self.featureSizes[1]
+            
+        if true_sizes[2] > 0:
+            if i < 0: i = 0 
+            
+            
             
             # constraint coefficient features
             mppA = np.inf
@@ -320,9 +325,9 @@ class SimPolyhedra():
             dynamicFeatures[i+20] = signmin_cA if negcond else 0
             dynamicFeatures[i+21] = absmax_cA if negcond else -1
             dynamicFeatures[i+22] = signmax_cA if negcond else 0
-            i += self.featureSizes[1]
+            i += self.featureSizes[2]
     
-        if true_sizes[2] > 0:
+        if true_sizes[3] > 0:
             if i < 0: i = 0
             # bounds/constraint features : test ratio
             mask = (self.state[:,1+act]>tol) & (self.state[:,0]>tol)
@@ -336,8 +341,8 @@ class SimPolyhedra():
             dynamicFeatures[i+2] = reduced_cost/np.linalg.norm(self.state[1:,1+act])
             dynamicFeatures[i+3] = self.entered[act]/self.steps
             dynamicFeatures[i+4] = reduced_cost*mbA
-            i += self.featureSizes[2]
-        if true_sizes[3] > 0:
+            i += self.featureSizes[3]
+        if true_sizes[4] > 0:
             if i < 0: i = 0
             dynamicFeatures[i+0] = (np.min(self.state[0,1:])/reduced_cost)**2 if abs(reduced_cost) > 0 else -1 #np.square(reduced_cost-np.min(self.state[0,1:]))
         return np.concatenate([self.staticFeatures[:,act],dynamicFeatures]) if true_sizes[0] > 0 else dynamicFeatures
