@@ -261,14 +261,14 @@ class SimPolyhedra():
                         if nnA < mnnA:
                             mnnA = nnA
             
-            dynamicFeatures[i+3] = mppA if mppA != np.inf else -1
-            dynamicFeatures[i+4] = MppA if MppA != -np.inf else -1
-            dynamicFeatures[i+5] = mpnA if mpnA != np.inf else -1
-            dynamicFeatures[i+6] = MpnA if MpnA != -np.inf else -1
-            dynamicFeatures[i+7] = mnpA if mnpA != np.inf else -1
-            dynamicFeatures[i+8] = MnpA if MnpA != -np.inf else -1
-            dynamicFeatures[i+9] = mnnA if mnnA != np.inf else -1
-            dynamicFeatures[i+10] = MnnA if MnnA != -np.inf else -1
+            dynamicFeatures[i+0] = mppA if mppA != np.inf else -1
+            dynamicFeatures[i+1] = MppA if MppA != -np.inf else -1
+            dynamicFeatures[i+2] = mpnA if mpnA != np.inf else -1
+            dynamicFeatures[i+3] = MpnA if MpnA != -np.inf else -1
+            dynamicFeatures[i+4] = mnpA if mnpA != np.inf else -1
+            dynamicFeatures[i+5] = MnpA if MnpA != -np.inf else -1
+            dynamicFeatures[i+6] = mnnA if mnnA != np.inf else -1
+            dynamicFeatures[i+7] = MnnA if MnnA != -np.inf else -1
             
             # bounds/constraint features
             mpbA = np.inf
@@ -299,10 +299,10 @@ class SimPolyhedra():
             
                      
       
-            dynamicFeatures[i+11] = abs_mpbA if mpbA != np.inf else -1
-            dynamicFeatures[i+12] = sign_mpbA if mpbA != np.inf else 0
-            dynamicFeatures[i+13] = abs_mpbA if MpbA != -np.inf else -1
-            dynamicFeatures[i+14] = sign_mpbA if MpbA != -np.inf else 0
+            dynamicFeatures[i+8] = abs_mpbA if mpbA != np.inf else -1
+            dynamicFeatures[i+9] = sign_mpbA if mpbA != np.inf else 0
+            dynamicFeatures[i+10] = abs_mpbA if MpbA != -np.inf else -1
+            dynamicFeatures[i+11] = sign_mpbA if MpbA != -np.inf else 0
                 
             # cost/constraint features
             # assert((abs(self.state[:,1+act]) > tol).any())
@@ -317,14 +317,14 @@ class SimPolyhedra():
             absmax_cA = np.abs(max_cA)
             poscond = reduced_cost >= 0
             negcond = reduced_cost < 0
-            dynamicFeatures[i+15] = absmin_cA if poscond else -1
-            dynamicFeatures[i+16] = signmin_cA if poscond else 0
-            dynamicFeatures[i+17] = absmax_cA if poscond else -1
-            dynamicFeatures[i+18] = signmax_cA if poscond else 0
-            dynamicFeatures[i+19] = absmin_cA if negcond else -1
-            dynamicFeatures[i+20] = signmin_cA if negcond else 0
-            dynamicFeatures[i+21] = absmax_cA if negcond else -1
-            dynamicFeatures[i+22] = signmax_cA if negcond else 0
+            dynamicFeatures[i+12] = absmin_cA if poscond else -1
+            dynamicFeatures[i+13] = signmin_cA if poscond else 0
+            dynamicFeatures[i+14] = absmax_cA if poscond else -1
+            dynamicFeatures[i+15] = signmax_cA if poscond else 0
+            dynamicFeatures[i+16] = absmin_cA if negcond else -1
+            dynamicFeatures[i+17] = signmin_cA if negcond else 0
+            dynamicFeatures[i+18] = absmax_cA if negcond else -1
+            dynamicFeatures[i+19] = signmax_cA if negcond else 0
             i += self.featureSizes[2]
     
         if true_sizes[3] > 0:
