@@ -72,6 +72,7 @@ class SimPolyhedra():
         self.lenFeatureSizes = len(self.featureSizes)
         c_pos = np.sum(self.c[self.c > 0])
         c_neg = -np.sum(self.c[self.c < 0])
+        c_norm = np.linalg.norm(self.c)
         
         A_pos = np.zeros([self.m,1])
         A_neg = np.zeros([self.m,1])
@@ -81,7 +82,7 @@ class SimPolyhedra():
         
         for i in range(self.n):
             # cost function features
-            self.staticFeatures[0,i] = sign(self.c[0,i])
+            self.staticFeatures[0,i] = self.c[0,i]/c_norm if abs(self.c[0,i]) > tol else 0
             self.staticFeatures[1,i] = abs(self.c[0,i])/c_pos if c_pos > 0 else -1
             self.staticFeatures[2,i] = abs(self.c[0,i])/c_neg if c_neg > 0 else -1
             
@@ -177,6 +178,7 @@ class SimPolyhedra():
         sa = np.sum(abs(self.state[0,1:]))
         self.c_pos = (sa + sp)/2
         self.c_neg = (sa - sp)/2
+        self.c_norm = np.linalg.norm(self.state[0,1:])
         
         self.A_pos = np.zeros([self.m,1])
         self.A_neg = np.zeros([self.m,1])
@@ -213,15 +215,13 @@ class SimPolyhedra():
             if i < 0: i = 0
             abs_reduced_cost = abs(reduced_cost)
             # cost function features
-            dynamicFeatures[i+0] = sign(reduced_cost)
+            dynamicFeatures[i+0] = reduced_cost/self.c_norm if abs(reduced_cost) > tol else 0
             dynamicFeatures[i+1] = abs_reduced_cost/self.c_pos if self.c_pos > 0 else -1
             dynamicFeatures[i+2] = abs_reduced_cost/self.c_neg if self.c_neg > 0 else -1
             i += self.featureSizes[1]
             
         if true_sizes[2] > 0:
             if i < 0: i = 0 
-            
-            
             
             # constraint coefficient features
             mppA = np.inf
@@ -289,16 +289,12 @@ class SimPolyhedra():
                         MnbA = nbA
                     if nbA < mnbA:
                         mnbA = nbA
+                        
             abs_mpbA = abs(mpbA)
             sign_mpbA = sign(mpbA)
             abs_MpbA = abs(MpbA)
             sign_MpbA = sign(MpbA) 
 
-            
-            
-            
-                     
-      
             dynamicFeatures[i+8] = abs_mpbA if mpbA != np.inf else -1
             dynamicFeatures[i+9] = sign_mpbA if mpbA != np.inf else 0
             dynamicFeatures[i+10] = abs_mpbA if MpbA != -np.inf else -1
@@ -512,25 +508,26 @@ class SimPolyhedra():
     def actionToDistanceToRCost(self,a):
         return np.square(np.min(self.state[0,1:]) - self.state[0,a+1])
         
-    def greatestImprovementAction(self):
+    def greatestImprovementAction(self,tol=1e-8):
         max_obj = -np.inf
         argmax_obj = None
         for act in range(self.n):
-            e,m = -1,np.inf
-            for i in range(self.m):
-                if self.state[1+i,1+act] > 0:
-                    r = self.state[1+i,0]/self.state[1+i,1+act]
-                    if r <= m:
-                        m = r
-                        e = i
-            
-            # e == -1 means the polyhedron is not bounded (Section 1.3 step 2)
-            assert(e != -1)
-            
-            obj = self.state[0,0] - self.state[1+e,0]*self.state[0,1+act]/self.state[1+e,1+act]
-            if obj > max_obj:
-                argmax_obj = act
-                max_obj = obj
+            if not self.basis[act] and self.state[0,1+act] < -tol:
+                e,m = -1,np.inf
+                for i in range(self.m):
+                    if self.state[1+i,1+act] > tol:
+                        r = self.state[1+i,0]/self.state[1+i,1+act]
+                        if r <= m:
+                            m = r
+                            e = i
+                
+                # e == -1 means the polyhedron is not bounded (Section 1.3 step 2)
+                assert(e != -1)
+                
+                obj = self.state[0,0] - self.state[1+e,0]*self.state[0,1+act]/self.state[1+e,1+act]
+                if obj > max_obj:
+                    argmax_obj = act
+                    max_obj = obj
         
         return argmax_obj
     
@@ -684,6 +681,7 @@ if __name__ == '__main__':
     reference_basis = P.basis[:]
     
     """ Dantzig's rule """
+    print("Dantzig")
     P.reset(reference_basis)
     steps = 0
     acts = []
@@ -709,6 +707,7 @@ if __name__ == '__main__':
     print("")
     
     """ Greatest Improve rule """
+    print("Greatest Improve")
     P.reset(reference_basis)
     steps = 0
     acts = []
@@ -734,6 +733,7 @@ if __name__ == '__main__':
     print("")
     
     """ Steepest edge rule """
+    print("Steepest edge")
     P.reset(reference_basis)
     steps = 0
     acts = []
