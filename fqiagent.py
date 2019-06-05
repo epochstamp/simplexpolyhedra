@@ -138,7 +138,8 @@ class FQI_Agent(object):
                 LS = p.map(generateEpisode, [("randomTuples", i) for i in lst_parallel_indexes])
         else:
             LS = [generateEpisode(("randomTuples", i)) for i in lst_parallel_indexes]
-        dump(LS, self.output_folder+"/learning_set.dmp", compress=9)
+        if not self.args.no_backup:
+            dump(LS, self.output_folder+"/learning_set.dmp", compress=9)
 
         if not os.path.isfile(self.output_folder+"/training_stats.csv") or (self.overwrite_mode == "w" and self.output_folder+"/training_stats.csv" not in self.locked):
             f = open(self.output_folder+"/training_stats.csv", "w+")
@@ -226,7 +227,8 @@ class FQI_Agent(object):
                 for f in filelist:
                     os.remove(f)
                 self.locked.add(self.output_folder+"/*.dmp*")
-        dump({"estimator":self.RC, "iter":i, "tested":tested,"random_state":np.random.get_state()},self.output_folder+"/checkpoints/checkpoint.dmp", compress=9)
+        if not self.args.no_backup:
+            dump({"estimator":self.RC, "iter":i, "tested":tested,"random_state":np.random.get_state()},self.output_folder+"/checkpoints/checkpoint.dmp", compress=9)
 
     def load_checkpoint(self, try_backup = True):
         if (self.overwrite_mode == "w" and self.output_folder+"/*.loaddmp" not in self.locked): 
@@ -326,7 +328,17 @@ class FQI_Agent(object):
             var_diffperf = np.var(diffperfs) if cond_diffperf else 0
             max_diffperf = np.max(diffperfs) if cond_diffperf else np.inf
             min_diffperf = np.min(diffperfs) if cond_diffperf else np.inf
-            lst_write = [str(success_rate_reflex),str(success_rate_agent), str(mean_diffperf), str(var_diffperf),str(min_diffperf), str(max_diffperf)]
+            #mean_tie_agent;var_tie_agent;min_tie_agent;max_tie_agent
+            mean_tie_agent = np.mean([np.sum([m[2] for m in t[0]]) for t in filtered_stats_agent])
+            var_tie_agent = np.var([np.sum([m[2] for m in t[0]]) for t in filtered_stats_agent])
+            min_tie_agent = np.min([np.sum([m[2] for m in t[0]]) for t in filtered_stats_agent])
+            max_tie_agent = np.max([np.sum([m[2] for m in t[0]]) for t in filtered_stats_agent])
+
+            mean_repeat_agent = np.mean([np.sum([m[3] for m in t[0]]) for t in filtered_stats_agent])
+            var_repeat_agent = np.var([np.sum([m[3] for m in t[0]]) for t in filtered_stats_agent])
+            min_repeat_agent = np.min([np.sum([m[3] for m in t[0]]) for t in filtered_stats_agent])
+            max_repeat_agent = np.max([np.sum([m[3] for m in t[0]]) for t in filtered_stats_agent])
+            lst_write = [str(success_rate_reflex),str(success_rate_agent), str(mean_diffperf), str(var_diffperf),str(min_diffperf), str(max_diffperf), str(mean_tie_agent), str(var_tie_agent), str(min_tie_agent), str(max_tie_agent), str(mean_repeat_agent), str(var_repeat_agent), str(min_repeat_agent), str(max_repeat_agent)]
             f.write(";".join(lst_write) + "\n")
 
     def _getFeaturesEnv(self, env):
@@ -336,6 +348,7 @@ class FQI_Agent(object):
     def generateAgentEpisodes(self, lst):
         global list_parallels
         lst_out = [([],x[4],False) for x in lst]
+        d_acts = [dict() for _ in lst]
         lst_env = [x[0] for x in lst]
         n_envs_remaining = len(lst_env)
         len_lst_env = n_envs_remaining
@@ -382,7 +395,8 @@ class FQI_Agent(object):
                     available_acts = available_acts_per_env.pop(0)
                     a = available_acts[np.argmax(whole_acts[beg:end])]
                     _, r, done, _ = env.step(a)
-                    lst_out[i][0].append((r,index_timestep[i]+1))
+                    lst_out[i][0].append((r,index_timestep[i]+1,((whole_acts[beg:end] == np.max(whole_acts[beg:end])).sum()>1)*1, d_acts[i].get(a,0)))
+                    d_acts[i][a] = 1
                     index_timestep[i] += 1
                     if done or index_timestep[i] >= env.maxSteps:
                         lst_env[i] = None
@@ -410,7 +424,7 @@ class FQI_Agent(object):
         for keyword,testenv in self.envs_test.items():
             if not os.path.isfile(self.output_folder+"/"+keyword+"_stats.csv") or (self.overwrite_mode == "w" and self.output_folder+"/"+keyword+"_stats.csv" not in self.locked):
                 f = open(self.output_folder+"/"+keyword+"_stats.csv", "w+")
-                f.write("success_rate_reflex;success_rate_agent;mean_diffperf;var_diffperf;min_diffperf;max_diffperf\n")
+                f.write("success_rate_reflex;success_rate_agent;mean_diffperf;var_diffperf;min_diffperf;max_diffperf;mean_tie_agent;var_tie_agent;min_tie_agent;max_tie_agent;mean_repeat_agent;var_repeat_agent;min_repeat_agent;max_repeat_agent\n")
                 
                 f.close()
                 self.locked.add(self.output_folder+"/"+keyword+"_stats.csv")
@@ -565,6 +579,7 @@ if __name__=="__main__":
     parser.add_argument("--envs-tests","-F",help="Configuration file for environment testing", type=configfile, default="unitcube.cfg")
     parser.add_argument("--q-iterations","-q",help="Number of iterations of FQI", type=strictpos_int, default=20)
     parser.add_argument("--maximum-time-exec-hours","-l",help="Execution time limit", type=strictpos_int, default=24)
+    parser.add_argument('--no-backup', help='Disable backup', action='store_true', default=False)
     
     args = parser.parse_args()
     if (args.seed != -1):
